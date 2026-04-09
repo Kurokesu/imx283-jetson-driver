@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2026, UAB Kurokesu. All rights reserved.
+
+/dts-v1/;
+/plugin/;
+
+#define CAM0_PWDN	TEGRA234_MAIN_GPIO(H, 6)
+#define CAM1_PWDN	TEGRA234_MAIN_GPIO(AC, 0)
+#define CAM_I2C_MUX	TEGRA234_AON_GPIO(CC, 3)
+
+#include <dt-bindings/tegra234-p3767-0000-common.h>
+
+/ {
+	overlay-name = "Camera IMX283-A";
+	jetson-header-name = "Jetson 22pin CSI Connector";
+	compatible = JETSON_COMPATIBLE_P3768;
+	/* IMX283 connected to cam0 port -- 4-lane CSI */
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			tegra-capture-vi {
+				num-channels = <1>;
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					port@0 {
+						reg = <0>;
+						rbpcv3_imx283_vi_in0: endpoint {
+							port-index = <0>;
+							bus-width = <4>;
+							remote-endpoint = <&rbpcv3_imx283_csi_out0>;
+						};
+					};
+				};
+			};
+			tegra-camera-platform {
+				compatible = "nvidia, tegra-camera-platform";
+				num_csi_lanes = <4>;
+				max_lane_speed = <1500000>;
+				min_bits_per_pixel = <12>;
+				vi_peak_byte_per_pixel = <2>;
+				vi_bw_margin_pct = <25>;
+				max_pixel_rate = <7500000>;
+				isp_peak_byte_per_pixel = <5>;
+				isp_bw_margin_pct = <25>;
+
+				modules {
+					module0 {
+						badge = "kurokesu_front_283M12";
+						position = "front";
+						orientation = "0";
+						drivernode0 {
+							pcl_id = "v4l2_sensor";
+							sysfs-device-tree = "/sys/firmware/devicetree/base/bus@0/cam_i2cmux/i2c@0/rbpcv3_imx283_a@1a";
+						};
+					};
+				};
+			};
+			bus@0 {
+				host1x@13e00000 {
+					nvcsi@15a00000 {
+						num-channels = <1>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						channel@0 {
+							reg = <0>;
+							ports {
+								#address-cells = <1>;
+								#size-cells = <0>;
+								port@0 {
+									reg = <0>;
+									rbpcv3_imx283_csi_in0: endpoint@0 {
+										port-index = <0>;
+										bus-width = <4>;
+										remote-endpoint = <&rbpcv3_imx283_out0>;
+									};
+								};
+								port@1 {
+									reg = <1>;
+									rbpcv3_imx283_csi_out0: endpoint@1 {
+										remote-endpoint = <&rbpcv3_imx283_vi_in0>;
+									};
+								};
+							};
+						};
+					};
+				};
+				cam_i2cmux {
+					status = "okay";
+					compatible = "i2c-mux-gpio";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					mux-gpios = <&gpio_aon CAM_I2C_MUX GPIO_ACTIVE_HIGH>;
+					i2c-parent = <&cam_i2c>;
+					i2c@0 {
+						status = "okay";
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						rbpcv3_imx283_a@1a {
+							reset-gpios = <&gpio CAM0_PWDN GPIO_ACTIVE_HIGH>;
+							compatible = "sony,imx283";
+							reg = <0x1a>;
+							devnode = "video0";
+
+							physical_w = "15.0";
+							physical_h = "10.0";
+							sensor_model = "imx283";
+
+							delayed_gain = "false";
+							use_decibel_gain = "false";
+							use_sensor_mode_id = "true";
+
+							mode0 { /* IMX283_MODE_5472X3648_12BIT_4LANE */
+								mclk_khz = "24000";
+								num_lanes = "4";
+								tegra_sinterface = "serial_a";
+								phy_mode = "DPHY";
+								discontinuous_clk = "no";
+								dpcm_enable = "false";
+								cil_settletime = "0";
+								lane_polarity = "0";
+
+								active_w = "5472";
+								active_h = "3648";
+								mode_type = "bayer";
+								pixel_phase = "rggb";
+								csi_pixel_bit_depth = "12";
+								readout_orientation = "0";
+
+								/*
+								 * Timing uses the 72 MHz internal clock.
+								 * HMAX = 900 (72 MHz clocks), VMAX = 4000.
+								 */
+								line_length = "900";
+								inherent_gain = "1";
+								mclk_multiplier = "4";
+								pix_clk_hz = "72000000";
+
+								/*
+								 * Gain: raw register units 0..1957.
+								 * gain[dB] = -20*log10((2048 - reg) / 2048)
+								 */
+								gain_factor = "1";
+								min_gain_val = "0";
+								max_gain_val = "1957";
+								step_gain_val = "1";
+								default_gain = "0";
+
+								framerate_factor = "1000000";
+								min_framerate = "1000000";    /* 1 fps */
+								max_framerate = "21000000";   /* 21 fps */
+								step_framerate = "1";
+								default_framerate = "20000000"; /* 20 fps */
+
+								exposure_factor = "1000000";
+								min_exp_time = "50";          /* 50 us */
+								max_exp_time = "49860";       /* ~49.9 ms */
+								step_exp_time = "1";
+								default_exp_time = "10000";   /* 10 ms */
+
+								min_hdr_ratio = "1";
+								max_hdr_ratio = "1";
+
+								embedded_metadata_height = "0";
+							};
+							ports {
+								#address-cells = <1>;
+								#size-cells = <0>;
+								port@0 {
+									reg = <0>;
+									rbpcv3_imx283_out0: endpoint {
+										port-index = <0>;
+										bus-width = <4>;
+										remote-endpoint = <&rbpcv3_imx283_csi_in0>;
+									};
+								};
+							};
+						};
+					};
+				};
+				gpio@6000d000 {
+					camera-control-output-low {
+						gpio-hog;
+						output-low;
+						gpios = <CAM1_PWDN 0 CAM0_PWDN 0>;
+						label = "cam1-pwdn", "cam0-pwdn";
+					};
+				};
+			};
+		};
+	};
+};
