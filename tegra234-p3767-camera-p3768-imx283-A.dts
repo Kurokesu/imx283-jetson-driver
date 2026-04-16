@@ -121,7 +121,7 @@
 								discontinuous_clk = "no";
 								dpcm_enable = "false";
 								cil_settletime = "0";
-								lane_polarity = "0";
+								lane_polarity = "6";
 
 								active_w = "5472";
 								active_h = "3648";

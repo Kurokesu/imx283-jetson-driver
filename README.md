@@ -1,6 +1,6 @@
 # IMX283 MIPI NVIDIA driver
 
-NVIDIA Jetson kernel driver for Sony IMX283 — a 20 MP 1" CMOS sensor.
+NVIDIA Jetson kernel driver for Sony IMX283, a 20 MP 1" CMOS sensor.
 
 - 4-lane MIPI CSI-2
 - 12-bit RAW output
