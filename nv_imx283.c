@@ -9,7 +9,7 @@
  * V4L2 driver by Will Whang, Kieran Bingham, and Umang Jain.
  */
 
-/* #define DEBUG */
+#define DEBUG
 
 #include <nvidia/conftest.h>
 
@@ -624,7 +624,28 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 			return err;
 	}
 
-	return imx283_write_table(priv, mode_table[IMX283_START_STREAM]);
+	err = imx283_write_table(priv, mode_table[IMX283_START_STREAM]);
+	if (err)
+		return err;
+
+	/*
+	 * Read back the two registers that gate master-mode operation so
+	 * dmesg tells us whether the sensor actually left standby. With
+	 * XMSTA=0 and STANDBY=0 we expect XVS (~20 Hz) and XHS (~80 kHz)
+	 * to start toggling on the sensor FPC.
+	 */
+	{
+		u8 standby = 0xff;
+		u8 xmsta = 0xff;
+
+		imx283_read_reg(s_data, IMX283_STANDBY, &standby);
+		imx283_read_reg(s_data, IMX283_XMSTA, &xmsta);
+		dev_info(tc_dev->dev,
+			 "start_streaming: STANDBY=0x%02x XMSTA=0x%02x (both should read 0x00)\n",
+			 standby, xmsta);
+	}
+
+	return 0;
 }
 
 static int imx283_stop_streaming(struct tegracam_device *tc_dev)
