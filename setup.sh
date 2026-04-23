@@ -39,7 +39,7 @@ cp "$SCRIPT_DIR/dkms.conf" "$DKMS_SRC/"
 cp "$SCRIPT_DIR/dkms.postinst" "$DKMS_SRC/"
 cp "$SCRIPT_DIR/nv_imx283.c" "$DKMS_SRC/"
 cp "$SCRIPT_DIR/imx283_mode_tbls.h" "$DKMS_SRC/"
-cp "$SCRIPT_DIR/tegra234-p3767-camera-p3768-imx283-A.dts" "$DKMS_SRC/"
+cp "$SCRIPT_DIR"/tegra234-p3767-camera-p3768-imx283-*.dts "$DKMS_SRC/"
 cp -r "$SCRIPT_DIR/scripts" "$DKMS_SRC/"
 
 # --- Fetch NVIDIA device tree header (requires internet) ---
