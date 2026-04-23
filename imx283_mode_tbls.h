@@ -118,10 +118,21 @@
 #define imx283_reg struct reg_8
 
 /*
- * Common init: standby cancel + PLL (24 MHz INCK) + MIPI timing (720 Mbps)
- * + activate + clamp/sync.
+ * Standby cancel phase 1 + 2 (datasheet page 77):
+ *   - Partial standby (STBLOGIC=1, STBDV=1)
+ *   - PLL input frequency config for 24 MHz INCK
+ *   - Communication init (PLSTMG)
+ *   - Enable PLL (STBPL=0)
+ *   - MIPI timing for 1440 Mbps data rate (720 MHz link freq)
+ *   - >= 1 ms stabilisation
+ *   - Exit standby (STANDBY=0)
+ *   - >= 19 ms stabilisation
  *
- * After this table the sensor is active but NOT streaming (XMSTA = 1).
+ * After this table the sensor is fully active but not yet in master
+ * mode (XMSTA defaults to 1 = master mode stop per datasheet). The
+ * transition to "Normal operation" (CLAMP/XMSTA/SYNCDRV) is deferred
+ * to imx283_start so that MIPI output begins exactly when tegracam
+ * calls start_streaming, matching the datasheet phase-3 sequence.
  */
 static imx283_reg imx283_mode_common[] = {
 	/* Partial standby */
@@ -141,26 +152,33 @@ static imx283_reg imx283_mode_common[] = {
 	{ IMX283_PLSTMG08, 0x77 },
 	{ IMX283_PLSTMG02, 0x00 },
 
-	/* Enable PLL */
+	/* Enable PLL (must be the last write before the 1 ms wait) */
 	{ IMX283_STBPL, 0x00 },
 
 	/*
-	 * MIPI timing for 720 Mbps data rate (360 MHz link freq).
-	 * Values from RPi driver mipi_data_rate_720Mbps[].
+	 * MIPI timing for 1440 Mbps data rate (720 MHz link freq).
+	 * Values from RPi driver mipi_data_rate_1440Mbps[].
+	 *
+	 * Bandwidth rationale: mode 0 line time is HMAX=900 @ 72 MHz
+	 * (12.5 us). Each line carries 5472 pixels x 12 bits = 65664
+	 * bits. Four lanes @ 1440 Mbps = 5.76 Gbps total, so the line
+	 * transmits in 11.4 us (fits). 720 Mbps only gives 2.88 Gbps
+	 * which needs 22.8 us per line - impossible within HMAX=900
+	 * and causes the sensor's MIPI TX to stay silent.
 	 */
-	{ 0x36C5, 0x01 },
-	{ 0x3AC4, 0x01 },
-	{ IMX283_TCLKPOST, 0x77 },
-	{ IMX283_THSPREPARE, 0x37 },
-	{ IMX283_THSZERO, 0x67 },
-	{ IMX283_THSTRAIL, 0x37 },
-	{ IMX283_TCLKTRAIL, 0x37 },
-	{ IMX283_TCLKPREPARE, 0x37 },
-	{ IMX283_TCLKZERO_LSB, 0xDF },
-	{ IMX283_TCLKZERO_MSB, 0x00 },
-	{ IMX283_TLPX, 0x2F },
+	{ 0x36C5, 0x00 },
+	{ 0x3AC4, 0x00 },
+	{ IMX283_TCLKPOST, 0xA7 },
+	{ IMX283_THSPREPARE, 0x6F },
+	{ IMX283_THSZERO, 0x9F },
+	{ IMX283_THSTRAIL, 0x5F },
+	{ IMX283_TCLKTRAIL, 0x5F },
+	{ IMX283_TCLKPREPARE, 0x6F },
+	{ IMX283_TCLKZERO_LSB, 0x7F },
+	{ IMX283_TCLKZERO_MSB, 0x01 },
+	{ IMX283_TLPX, 0x4F },
 	{ IMX283_THSEXIT, 0x47 },
-	{ IMX283_TCLKPRE, 0x0F },
+	{ IMX283_TCLKPRE, 0x07 },
 	{ IMX283_SYSMODE, 0x02 },
 
 	/* 1st stabilisation period (>= 1 ms) */
@@ -171,15 +189,6 @@ static imx283_reg imx283_mode_common[] = {
 
 	/* 2nd stabilisation period (>= 19 ms) */
 	{ IMX283_TABLE_WAIT_MS, IMX283_WAIT_MS * 20 },
-
-	/* Clamp reset */
-	{ IMX283_CLAMP, 0x10 },
-
-	/* Keep master mode stopped until start_streaming */
-	{ IMX283_XMSTA, 0x01 },
-
-	/* XHS/XVS sync driver */
-	{ IMX283_SYNCDRV, 0xA2 },
 
 	{ IMX283_TABLE_END, 0x00 },
 };
@@ -262,9 +271,16 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_TABLE_END, 0x00 },
 };
 
-/* Start streaming: release master mode hold */
+/*
+ * Standby cancel phase 3 (datasheet page 77, "Normal operation"):
+ *   - CLPSQRST = 1
+ *   - XMSTA    = 0  (master mode start -> MIPI output begins)
+ *   - SYNCDRV  = 2  (XHS/XVS drive enabled)
+ */
 static imx283_reg imx283_start[] = {
+	{ IMX283_CLAMP, 0x10 },
 	{ IMX283_XMSTA, 0x00 },
+	{ IMX283_SYNCDRV, 0xA2 },
 	{ IMX283_TABLE_END, 0x00 },
 };
 
