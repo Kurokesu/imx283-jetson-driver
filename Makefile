@@ -12,7 +12,10 @@ DTS  := $(wildcard tegra234-p3767-camera-p3768-imx283-*.dts)
 DTBO := $(DTS:.dts=.dtbo)
 
 # Kernel headers include path (for dt-bindings/gpio/*.h)
-KERNEL_INCLUDE := /usr/src/linux-headers-$(shell uname -r | sed 's/-tegra.*/-tegra-ubuntu22.04_aarch64/')/3rdparty/canonical/linux-jammy/kernel-source/include
+UNAME_R        := $(shell uname -r)
+KERNEL_RELEASE := $(shell echo '$(UNAME_R)' | sed 's/-tegra.*/-tegra-ubuntu22.04_aarch64/')
+JETSON_KSRC    := 3rdparty/canonical/linux-jammy/kernel-source
+KERNEL_INCLUDE := /usr/src/linux-headers-$(KERNEL_RELEASE)/$(JETSON_KSRC)/include
 
 # Auto-fetched/generated include path (inside build/)
 LOCAL_INCLUDE := $(BUILD_DIR)/include
@@ -28,7 +31,7 @@ L4T_MAJOR := $(shell grep -oP 'R\K[0-9]+' /etc/nv_tegra_release | head -1)
 L4T_MINOR := $(shell grep -oP 'REVISION:\s*\K[0-9]+' /etc/nv_tegra_release | head -1)
 
 # Kernel module
-KDIR   := /lib/modules/$(shell uname -r)/build
+KDIR   := /lib/modules/$(UNAME_R)/build
 NV_OOT := /usr/src/nvidia/nvidia-oot
 
 # Source files needed by kbuild (symlinked into build/)
