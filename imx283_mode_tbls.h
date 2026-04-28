@@ -123,7 +123,7 @@
  *   - PLL input frequency config for 24 MHz INCK
  *   - Communication init (PLSTMG)
  *   - Enable PLL (STBPL=0)
- *   - MIPI timing for 1440 Mbps data rate (720 MHz link freq)
+ *   - MIPI timing for 720 Mbps data rate (360 MHz link freq)
  *   - >= 1 ms stabilisation
  *   - Exit standby (STANDBY=0)
  *   - >= 19 ms stabilisation
@@ -156,29 +156,35 @@ static imx283_reg imx283_mode_common[] = {
 	{ IMX283_STBPL, 0x00 },
 
 	/*
-	 * MIPI timing for 1440 Mbps data rate (720 MHz link freq).
-	 * Values from RPi driver mipi_data_rate_1440Mbps[].
+	 * MIPI timing for 720 Mbps data rate (360 MHz link freq).
+	 * Values from RPi driver mipi_data_rate_720Mbps[].
 	 *
-	 * Bandwidth rationale: mode 0 line time is HMAX=900 @ 72 MHz
-	 * (12.5 us). Each line carries 5472 pixels x 12 bits = 65664
-	 * bits. Four lanes @ 1440 Mbps = 5.76 Gbps total, so the line
-	 * transmits in 11.4 us (fits). 720 Mbps only gives 2.88 Gbps
-	 * which needs 22.8 us per line - impossible within HMAX=900
-	 * and causes the sensor's MIPI TX to stay silent.
+	 * Bit rate halved from the IMX283 default 1440 Mbps to keep the
+	 * Tegra DPHY data eye open for payloads with multi-bit runs;
+	 * 1440 Mbps is marginal on this hardware path and produces
+	 * pattern-dependent payload CRC errors in non-test data.
+	 *
+	 * Line burst at 720 Mbps: 5568 px * 12 bit / 4 lanes = 16704
+	 * bits/lane = 23.2 us. HMAX must therefore be >= 1670 (in
+	 * 72 MHz units); the mode table below uses 1800 for ~7% margin.
+	 *
+	 * 0x36C5 and 0x3AC4 are undocumented sensor registers per the
+	 * RPi driver; their values differ between rate presets and
+	 * must be paired with the matching DPHY HS timings.
 	 */
-	{ 0x36C5, 0x00 },
-	{ 0x3AC4, 0x00 },
-	{ IMX283_TCLKPOST, 0xA7 },
-	{ IMX283_THSPREPARE, 0x6F },
-	{ IMX283_THSZERO, 0x9F },
-	{ IMX283_THSTRAIL, 0x5F },
-	{ IMX283_TCLKTRAIL, 0x5F },
-	{ IMX283_TCLKPREPARE, 0x6F },
-	{ IMX283_TCLKZERO_LSB, 0x7F },
-	{ IMX283_TCLKZERO_MSB, 0x01 },
-	{ IMX283_TLPX, 0x4F },
+	{ 0x36C5, 0x01 },
+	{ 0x3AC4, 0x01 },
+	{ IMX283_TCLKPOST, 0x77 },
+	{ IMX283_THSPREPARE, 0x37 },
+	{ IMX283_THSZERO, 0x67 },
+	{ IMX283_THSTRAIL, 0x37 },
+	{ IMX283_TCLKTRAIL, 0x37 },
+	{ IMX283_TCLKPREPARE, 0x37 },
+	{ IMX283_TCLKZERO_LSB, 0xDF },
+	{ IMX283_TCLKZERO_MSB, 0x00 },
+	{ IMX283_TLPX, 0x2F },
 	{ IMX283_THSEXIT, 0x47 },
-	{ IMX283_TCLKPRE, 0x07 },
+	{ IMX283_TCLKPRE, 0x0F },
 	{ IMX283_SYSMODE, 0x02 },
 
 	/* 1st stabilisation period (>= 1 ms) */
@@ -194,24 +200,77 @@ static imx283_reg imx283_mode_common[] = {
 };
 
 /*
- * Mode 0: 12-bit, 5472 x 3648, all-pixel readout.
+ * Mode 0: 12-bit, 5568 x 3648 on-wire (96 HOB/OB + 5472 effective
+ * aperture) x V-crop output. HTRIMMING_START/END only crops the inner
+ * 5472-pixel effective region; the 96 leading HOB cols still appear
+ * on MIPI as zero-valued RAW12 pixels in every pixel-data line (DT
+ * 0x2C) and userspace can crop them at display.
  *
- * Derived from RPi driver supported_modes_12bit[0] and
- * imx283_readout_modes[IMX283_MODE_0].
+ * Mode 0 H-trim constraint (datasheet page 68, "Horizontal Arbitrary
+ * Cropping Function"):
  *
- * Image parameters:
- *   y_out_size  = 3648  (0x0E40)
- *   write_vsize = 3664  (0x0E50)  = y_out_size + vertical_ob(16)
- *   vwinpos     = 20    (0x0014)  = (crop.top / vbin) / 2 + vst
- *   vwidcut     = 23    (0x0017)  = (veff - y_out_size) / 2 + vct
- *   htrim_start = 108   (0x006C)  = crop.left
- *   htrim_end   = 5580  (0x15CC)  = crop.left + crop.width
- *   hmax        = 900   (0x0384)  72 MHz clocks (= 6000 pix @ 480 Mpix/s)
- *   vmax        = 4000  (0x0FA0)  lines  (~20 fps)
- *   shr         = 11    (0x000B)  minimum for mode 0
+ *     HTRIMMING_START = HOST + N * step
+ *     HTRIMMING_END   = HOST + HNUM - M * step
+ *     HTRIMMING_END - HTRIMMING_START >= MinH
+ *     (M, N integers >= 0)
+ *
+ *   For Mode 0:  HOST = 120,  HNUM = 5496,  step = 4,  MinH = 240
+ *
+ * Note: the RPi imx283 driver hard-codes HTRIMMING_START=108,
+ * HTRIMMING_END=5580 -- those are Mode 6 values (HOST=108) and are
+ * illegal for Mode 0 (would require N = -3). With out-of-range
+ * HTRIMMING_START the sensor silently disables H-trim and emits the
+ * full HNUM=5496 pixels per line.
+ *
+ * To get a clean 5472-pixel effective line width with Mode 0:
+ *   HTRIMMING_START = 120 + 0 * 4   = 120   (N = 0)
+ *   HTRIMMING_END   = 5616 - 6 * 4  = 5592  (M = 6)
+ *   width = 5592 - 120 = 5472 (>= MinH = 240 OK)
+ *
+ * Datasheet Mode 0 register table (pages 39-40), with V-crop enabled
+ * to clamp output to the recommended-recording sub-area:
+ *
+ *   MDSEL1          = 04h
+ *   MDSEL2          = 03h
+ *   MDSEL3          = 30h    (= 10h | 20h, VCROP_EN bit set)
+ *   MDSEL4          = 50h    (= 00h | 50h, VCROP_EN bit set)
+ *   SVR             = 0000h
+ *   HTRIMMING       = 30h    ([7:5]=001 reserved, [4]=1 enable)
+ *   VWINPOS         = 0014h  (20, V-crop start offset)
+ *   VWIDCUT         = 0017h  (23, V-crop trim count)
+ *   Y_OUT_SIZE      = 0E40h  (3648 lines, recommended recording Veff)
+ *   WRITE_VSIZE     = 0E50h  (3664 = 3648 + 16 OB)
+ *   OB_SIZE_V       = 10h    (16 vertical OB lines)
+ *   HMAX            = 0708h  (1800 @ 72 MHz, ~10 fps at 720 Mbps)
+ *   VMAX            = 00FA0h (4000)
+ *   SHR             = 000Bh  (11, minimum for Mode 0)
+ *   HTRIMMING_START = 0078h  (120, Mode 0 minimum)
+ *   HTRIMMING_END   = 15D8h  (5592, gives 5472-pix line width)
+ *
+ * V-crop output line count math (datasheet p.65):
+ *   For Mode 0: Vst = 0, Vct = 0, Veff = 3694
+ *   output_lines = Veff - (VWIDCUT - Vct) * 2 = 3694 - 46 = 3648 OK
+ *   This matches Y_OUT_SIZE and DTS active_h exactly.
+ *
+ * HTRIMMING (0x300B) = 0x30 preserves reserved bits [7:5]=001 per
+ * the datasheet "Set the default value" requirement; the RPi driver
+ * writes 0x10 here, clobbering them.
+ *
+ * Sensor wire output per frame (datasheet p.47):
+ *   - FS short packet.
+ *   - 1 Embedded Data line (DT 0x12), EBD_X_OUT_SIZE = 0.
+ *   - 16 Optical Black lines (DT 0x37), absorbed by NVCSI.
+ *   - 3648 image lines (DT 0x2C, RAW12), 5568 pixels each.
+ *   - FE short packet.
  */
 static imx283_reg imx283_mode_5472x3648_12bit[] = {
-	/* Readout mode 0 (12-bit) with vertical cropping */
+	/*
+	 * Readout mode 0 (12-bit), with V-crop enabled to clamp output to
+	 * the datasheet-recommended 5472 x 3648 recording sub-area.
+	 *
+	 * MDSEL3 [5] = VCROP_EN; MDSEL4 [6:4] are V-crop control bits.
+	 * Values (0x30, 0x50) match the RPi imx283 driver's mode-0 entry.
+	 */
 	{ IMX283_MDSEL1, 0x04 },
 	{ IMX283_MDSEL2, 0x03 },
 	{ IMX283_MDSEL3, 0x10 | IMX283_MDSEL3_VCROP_EN },
@@ -221,33 +280,45 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_SVR_LSB, 0x00 },
 	{ IMX283_SVR_MSB, 0x00 },
 
-	/* Horizontal trimming enable (no VFLIP) */
-	{ IMX283_HTRIMMING, 0x10 },
+	/*
+	 * 0x300B HTRIMMING:
+	 *   [7:5] = 0b001 reserved (POR default; preserve)
+	 *   [4]   = 1     HTRIMMING_EN
+	 *   [3:1] = 0     reserved
+	 *   [0]   = 0     MDVREV (vertical flip)
+	 */
+	{ IMX283_HTRIMMING, 0x30 },
 
-	/* VWINPOS = 20 */
+	/* VWINPOS = 20 (V-crop start offset, RPi value) */
 	{ IMX283_VWINPOS_LSB, 0x14 },
 	{ IMX283_VWINPOS_MSB, 0x00 },
 
-	/* VWIDCUT = 23 */
+	/* VWIDCUT = 23 (V-crop trim count, RPi value) */
 	{ IMX283_VWIDCUT_LSB, 0x17 },
 	{ IMX283_VWIDCUT_MSB, 0x00 },
 
-	/* Y_OUT_SIZE = 3648 */
+	/* Y_OUT_SIZE = 3648 (0x0E40, recommended-recording Veff) */
 	{ IMX283_Y_OUT_SIZE_LSB, 0x40 },
 	{ IMX283_Y_OUT_SIZE_MSB, 0x0E },
 
-	/* WRITE_VSIZE = 3664 */
+	/* WRITE_VSIZE = 3664 (0x0E50, = Y_OUT_SIZE + 16 OB) */
 	{ IMX283_WRITE_VSIZE_LSB, 0x50 },
 	{ IMX283_WRITE_VSIZE_MSB, 0x0E },
 
-	/* OB_SIZE_V = 16 */
+	/* OB_SIZE_V = 16 vertical optical-black lines (datasheet default) */
 	{ IMX283_OB_SIZE_V, 0x10 },
 
-	/* HMAX = 900 (72 MHz clocks) */
-	{ IMX283_HMAX_LSB, 0x84 },
-	{ IMX283_HMAX_MSB, 0x03 },
+	/*
+	 * HMAX = 1800 (72 MHz clocks = 25 us/line). Sized for the
+	 * 720 Mbps preset: line burst is 5568 px * 12 bit / 4 lanes =
+	 * 16704 bits/lane = 23.2 us, so HMAX >= 1670 in 72 MHz units.
+	 * 1800 gives ~7% margin. Frame time = 1800 * 4000 / 72e6 =
+	 * 100 ms ~= 10 fps.
+	 */
+	{ IMX283_HMAX_LSB, 0x08 },  /* 1800 & 0xFF */
+	{ IMX283_HMAX_MSB, 0x07 },  /* 1800 >> 8   */
 
-	/* VMAX = 4000 */
+	/* VMAX = 4000 (~10 fps at 720 Mbps with HMAX=1800) */
 	{ IMX283_VMAX_LSB, 0xA0 },
 	{ IMX283_VMAX_MID, 0x0F },
 	{ IMX283_VMAX_MSB, 0x00 },
@@ -256,15 +327,31 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_SHR_LSB, 0x0B },
 	{ IMX283_SHR_MSB, 0x00 },
 
-	/* HTRIMMING_START = 108 (crop.left) */
-	{ IMX283_HTRIMMING_START_LSB, 0x6C },
+	/*
+	 * HTRIMMING_START = 120 (0x0078, Mode 0 minimum = HOST).
+	 * Mode 0 requires HTRIMMING_START = 120 + N*4 with N>=0; the
+	 * RPi value of 108 (Mode 6's HOST) violates this and silently
+	 * disables H-trim, making the sensor emit full HNUM=5496 pixels
+	 * per line and triggering err_data 256 PIXEL_LONG_LINE on Tegra.
+	 */
+	{ IMX283_HTRIMMING_START_LSB, 0x78 },
 	{ IMX283_HTRIMMING_START_MSB, 0x00 },
 
-	/* HTRIMMING_END = 5580 (crop.left + crop.width) */
-	{ IMX283_HTRIMMING_END_LSB, 0xCC },
+	/*
+	 * HTRIMMING_END = 5592 (0x15D8, M=6: 5616 - 6*4).
+	 * Width = HTRIMMING_END - HTRIMMING_START = 5472 pixels.
+	 */
+	{ IMX283_HTRIMMING_END_LSB, 0xD8 },
 	{ IMX283_HTRIMMING_END_MSB, 0x15 },
 
-	/* Disable embedded data */
+	/*
+	 * EBD_X_OUT_SIZE = 0 -- matches RPi upstream and the datasheet
+	 * POR default. Writing 0 may not fully suppress the DT 0x12 EBD
+	 * long packet on the wire (the sensor may still emit a short
+	 * header/footer-only payload), so this MUST be paired with DTS
+	 * `embedded_metadata_height = "0"` so Tegra VI's chansel does
+	 * not allocate or expect a metadata line.
+	 */
 	{ IMX283_EBD_X_OUT_SIZE_LSB, 0x00 },
 	{ IMX283_EBD_X_OUT_SIZE_MSB, 0x00 },
 
@@ -292,14 +379,14 @@ static imx283_reg imx283_stop[] = {
 };
 
 enum {
-	IMX283_MODE_5472X3648,
+	IMX283_MODE_5568X3648,
 	IMX283_MODE_COMMON,
 	IMX283_START_STREAM,
 	IMX283_STOP_STREAM,
 };
 
 static imx283_reg *mode_table[] = {
-	[IMX283_MODE_5472X3648] = imx283_mode_5472x3648_12bit,
+	[IMX283_MODE_5568X3648] = imx283_mode_5472x3648_12bit,
 	[IMX283_MODE_COMMON] = imx283_mode_common,
 	[IMX283_START_STREAM] = imx283_start,
 	[IMX283_STOP_STREAM] = imx283_stop,
@@ -314,7 +401,12 @@ static const int imx283_20fps[] = {
  * device tree!
  */
 static const struct camera_common_frmfmt imx283_frmfmt[] = {
-	{ { 5472, 3648 }, imx283_20fps, 1, 0, IMX283_MODE_5472X3648 },
+	/*
+	 * 5568 x 3648 = 96 HOB + (HTRIMMING_END - HTRIMMING_START) =
+	 * full on-wire line width, x V-crop output line count. Both
+	 * dimensions are even as required by Tegra VI.
+	 */
+	{ { 5568, 3648 }, imx283_20fps, 1, 0, IMX283_MODE_5568X3648 },
 };
 
 #endif /* __IMX283_MODE_TBLS_H__ */

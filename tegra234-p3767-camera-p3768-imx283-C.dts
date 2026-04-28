@@ -113,17 +113,61 @@
 							use_decibel_gain = "false";
 							use_sensor_mode_id = "true";
 
-							mode0 { /* IMX283_MODE_5472X3648_12BIT_4LANE */
+							mode0 { /* IMX283_MODE_5568X3648_12BIT_4LANE */
 								mclk_khz = "24000";
 								num_lanes = "4";
 								tegra_sinterface = "serial_c";
 								phy_mode = "DPHY";
+								/*
+								 * IMX283 emits the CSI-2 D-PHY clock
+								 * in CONTINUOUS HS mode during normal
+								 * streaming (per IMX283 Support
+								 * Package section 4.1.3, "Escape
+								 * mode": the sensor only enters ULPS
+								 * on power on/off and standby).
+								 * Tegra must be told the clock is
+								 * continuous, otherwise NVCSI waits
+								 * for HS exit/entry events that
+								 * never arrive between lines and
+								 * payload CRC checks fail.
+								 */
 								discontinuous_clk = "no";
 								dpcm_enable = "false";
+								/*
+								 * "0" lets NVCSI auto-compute
+								 * THS-SETTLE; this matches every
+								 * NVIDIA reference camera DTS and is
+								 * in-spec for both 1440 Mbps and the
+								 * current 720 Mbps rate.
+								 */
 								cil_settletime = "0";
 								lane_polarity = "0";
 
-								active_w = "5472";
+								/*
+								 * 5568 = full on-wire line width:
+								 * 96 non-effective pixels (HOB/OB)
+								 * + 5472 effective aperture. The
+								 * sensor HTRIMMING registers crop
+								 * only inside the 5472-pixel area;
+								 * the leading 96 HOB cols still
+								 * appear on MIPI as zero-valued
+								 * RAW12 pixels in every pixel line
+								 * (DT 0x2C). active_w must match the
+								 * on-wire width to satisfy chansel's
+								 * per-line pixel counter.
+								 *
+								 * IMX283 Mode 0 horizontal layout
+								 * (datasheet p.47):
+								 *
+								 *   |<- 96 non-eff -->|<-- 5472 eff -->|
+								 *   | 48 HOB | 24 OB |12|12| aperture  |
+								 *
+								 * active_h matches Y_OUT_SIZE; both
+								 * dimensions are even as Tegra VI
+								 * requires. Userspace can crop the
+								 * 96 leading cols at display.
+								 */
+								active_w = "5568";
 								active_h = "3648";
 								mode_type = "bayer";
 								pixel_phase = "rggb";
@@ -132,20 +176,31 @@
 								readout_orientation = "0";
 
 								/*
-								 * MIPI data rate = 1440 Mbps/lane x 4 lanes
-								 *                / 12 bpp = 480 Mpix/s.
+								 * MIPI data rate = 720 Mbps/lane x 4 lanes
+								 *                / 12 bpp = 240 Mpix/s.
 								 * HTotal (line_length) x VTotal x FPS
-								 *     = 6000 x 4000 x 20 = 480 Mpix/s.
-								 * HMAX register value is 900 (72 MHz clocks),
-								 * which corresponds to 6000 pixels at the
-								 * sensor's 480 MHz internal pixel rate.
-								 * mclk_multiplier must be > pix_clk_hz/mclk
-								 * = 480/24 = 20, so 25 gives ISP headroom.
+								 *     = 6096 x 4000 x 10 = 243.8 Mpix/s
+								 * (fits within 240 Mpix/s with margin).
+								 *
+								 * Bit rate halved from 1440 Mbps to keep
+								 * the Tegra DPHY data eye open for
+								 * payloads with multi-bit runs (see
+								 * imx283_mode_tbls.h for the matching
+								 * HS-timing register block and HMAX
+								 * sizing).
+								 *
+								 * line_length is the H total of the
+								 * Tegra-side FPS math (>= active_w);
+								 * not used for per-line pixel counting.
+								 *
+								 * mclk_multiplier must be > pix_clk_hz/
+								 * mclk = 240/24 = 10; 25 leaves ISP
+								 * headroom.
 								 */
-								line_length = "6000";
+								line_length = "6096";
 								inherent_gain = "1";
 								mclk_multiplier = "25";
-								pix_clk_hz = "480000000";
+								pix_clk_hz = "240000000";
 
 								/*
 								 * Gain: raw register units 0..1957.
@@ -159,9 +214,22 @@
 
 								framerate_factor = "1000000";
 								min_framerate = "1000000";    /* 1 fps */
-								max_framerate = "21000000";   /* 21 fps */
+								/*
+								 * max_framerate must match what the
+								 * sensor can actually deliver. At
+								 * HMAX=1800 the minimum frame period
+								 * is HMAX * VMAX_min / 72 MHz = 1800
+								 * * 3793 / 72e6 = 94.8 ms, i.e. a
+								 * 10.5 fps ceiling. Advertising 11
+								 * fps causes libargus to reprogram
+								 * VMAX=3793 and expect frames every
+								 * 90.9 ms, then tear the consumer
+								 * pipeline down when the first frame
+								 * arrives late.
+								 */
+								max_framerate = "10000000";   /* 10 fps */
 								step_framerate = "1";
-								default_framerate = "20000000"; /* 20 fps */
+								default_framerate = "10000000"; /* 10 fps */
 
 								exposure_factor = "1000000";
 								min_exp_time = "50";          /* 50 us */
@@ -172,6 +240,13 @@
 								min_hdr_ratio = "1";
 								max_hdr_ratio = "1";
 
+								/*
+								 * Pair with sensor EBD_X_OUT_SIZE = 0
+								 * (see imx283_mode_tbls.h). Mismatch
+								 * leaves Tegra VI's chansel waiting
+								 * on an EBD line that the sensor
+								 * does not emit, stalling capture.
+								 */
 								embedded_metadata_height = "0";
 							};
 							ports {

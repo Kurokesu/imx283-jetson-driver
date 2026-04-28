@@ -587,7 +587,7 @@ static int imx283_set_mode(struct tegracam_device *tc_dev)
 	if (err)
 		return err;
 
-	err = imx283_write_table(priv, mode_table[IMX283_MODE_5472X3648]);
+	err = imx283_write_table(priv, mode_table[IMX283_MODE_5568X3648]);
 	if (err)
 		return err;
 
