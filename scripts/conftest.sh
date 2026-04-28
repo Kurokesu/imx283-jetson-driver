@@ -16,6 +16,9 @@
 
 set -e
 
+# Status line formatter (matches Makefile's PRINT)
+print() { printf '  %-7s %s\n' "$1" "$2"; }
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_OUT="$(cd "$SCRIPT_DIR/.." && pwd)/include"
 OUT_DIR="${1:-$DEFAULT_OUT}"
@@ -23,8 +26,7 @@ KERNEL_SRC="${2:-/lib/modules/$(uname -r)/build}"
 
 CC="${CC:-gcc}"
 
-# --- Build CFLAGS (derived from NVIDIA's conftest.sh build_cflags) ---
-
+# Build CFLAGS (derived from NVIDIA's conftest.sh build_cflags)
 ISYSTEM=$($CC -print-file-name=include 2>/dev/null)
 HEADERS="$KERNEL_SRC/include"
 ARCH="arm64"
@@ -39,8 +41,7 @@ CFLAGS="$CFLAGS -I$HEADERS -I$HEADERS/uapi -I$HEADERS/generated/uapi"
 CFLAGS="$CFLAGS -I$SOURCE_ARCH -I$SOURCE_ARCH/uapi"
 CFLAGS="$CFLAGS -I$SOURCE_ARCH/generated -I$SOURCE_ARCH/generated/uapi"
 
-# --- Compile-test helpers (same logic as NVIDIA's compile_check_conftest) ---
-
+# Compile-test helpers (same logic as NVIDIA's compile_check_conftest)
 TMPFILE=$(mktemp /tmp/conftest_XXXXXX)
 RESULT=""
 
@@ -73,9 +74,8 @@ compile_test() {
 	rm -f "${TMPFILE}.c" "${TMPFILE}.o"
 }
 
-# --- Run compile tests (extracted from NVIDIA's conftest.sh) ---
-
-echo "  CONFTEST: i2c_driver_struct_probe_without_i2c_device_id_arg"
+# Run compile tests (extracted from NVIDIA's conftest.sh)
+print CHECK "i2c_driver_struct_probe_without_i2c_device_id_arg"
 compile_test "
 #define _LINUX_EFI_H
 #include <linux/i2c.h>
@@ -83,7 +83,7 @@ void conftest_i2c_driver_struct_probe_without_i2c_device_id_arg(struct i2c_drive
 	i2cd->probe(NULL);
 }" "NV_I2C_DRIVER_STRUCT_PROBE_WITHOUT_I2C_DEVICE_ID_ARG" "types"
 
-echo "  CONFTEST: i2c_driver_struct_remove_return_type_int"
+print CHECK "i2c_driver_struct_remove_return_type_int"
 compile_test "
 #define _LINUX_EFI_H
 #include <linux/i2c.h>
@@ -91,8 +91,7 @@ int conftest_i2c_driver_struct_remove_return_type_int(struct i2c_driver *i2cd) {
 	return i2cd->remove(NULL);
 }" "NV_I2C_DRIVER_STRUCT_REMOVE_RETURN_TYPE_INT" "types"
 
-# --- Write output ---
-
+# Write output
 mkdir -p "$OUT_DIR/nvidia"
 cat > "$OUT_DIR/nvidia/conftest.h" << HEADER
 /* SPDX-License-Identifier: MIT */
@@ -113,4 +112,4 @@ $RESULT
 HEADER
 
 rm -f "$TMPFILE"
-echo "  Generated $OUT_DIR/nvidia/conftest.h"
+print WROTE "$OUT_DIR/nvidia/conftest.h"

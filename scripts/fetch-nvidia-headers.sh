@@ -11,6 +11,9 @@
 
 set -e
 
+# Status line formatter (matches Makefile's PRINT)
+print() { printf '  %-7s %s\n' "$1" "$2"; }
+
 OUT_DIR="${1:?Usage: $0 <output_dir> [l4t_tag]}"
 TAG="${2:-}"
 
@@ -32,11 +35,11 @@ URL="${GITLAB_BASE}/${TAG}/${REPO_PATH}"
 
 mkdir -p "$(dirname "$LOCAL_FILE")"
 
-echo "  FETCH dt-bindings/tegra234-p3767-0000-common.h (tag: $TAG)"
+print FETCH "dt-bindings/tegra234-p3767-0000-common.h (tag: $TAG)"
 if ! wget -q -O "$LOCAL_FILE" "$URL" 2>/dev/null; then
 	echo "ERROR: failed to download $URL" >&2
 	echo "       Verify that tag '$TAG' exists and the file is available." >&2
 	exit 1
 fi
 
-echo "  Headers fetched to $OUT_DIR"
+print WROTE "$OUT_DIR"
