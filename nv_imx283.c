@@ -168,32 +168,18 @@ static int imx283_set_group_hold(struct tegracam_device *tc_dev, bool val)
 
 static int imx283_set_gain(struct tegracam_device *tc_dev, s64 val)
 {
-	struct camera_common_data *s_data = tc_dev->s_data;
-	struct device *dev = tc_dev->dev;
-	u16 gain;
-	int err;
-
 	/*
-	 * The DTS advertises raw register units (gain_factor = 1).
-	 * Clamp to the valid 11-bit range 0..1957.
+	 * Stub: gain stays at the mode-table default (register 0 =
+	 * unity). The tegracam control plumbing requires this hook
+	 * but writing IMX283_ANALOG_GAIN_LSB/MSB during Argus session
+	 * setup is currently destabilising capture; restore once that
+	 * path is verified.
 	 */
-	if (val < 0)
-		val = 0;
-	if (val > IMX283_ANA_GAIN_MAX)
-		val = IMX283_ANA_GAIN_MAX;
-
-	gain = (u16)val;
-	dev_dbg(dev, "%s: gain reg: %u\n", __func__, gain);
-
-	err = imx283_write_reg(s_data, IMX283_ANALOG_GAIN_LSB, gain & 0xFF);
-	if (err)
-		return err;
-
-	return imx283_write_reg(s_data, IMX283_ANALOG_GAIN_MSB,
-				(gain >> 8) & 0xFF);
+	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
+	return 0;
 }
 
-static int imx283_set_coarse_time(struct imx283 *priv, s64 val)
+static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
 {
 	struct camera_common_data *s_data = priv->s_data;
 	const struct sensor_mode_properties *mode =
@@ -250,53 +236,36 @@ static int imx283_set_coarse_time(struct imx283 *priv, s64 val)
 
 static int imx283_set_exposure(struct tegracam_device *tc_dev, s64 val)
 {
-	struct imx283 *priv = (struct imx283 *)tc_dev->priv;
-
-	dev_dbg(tc_dev->dev, "%s: val: %lld\n", __func__, val);
-
-	return imx283_set_coarse_time(priv, val);
+	/*
+	 * Stub: exposure stays at the SHR value programmed by the mode
+	 * table (SHR = 11, near-full-frame open shutter at 10 fps).
+	 *
+	 * The previous implementation called imx283_set_coarse_time()
+	 * which computes SHR = priv->frame_length - coarse_time; that
+	 * runs against priv->frame_length BEFORE set_frame_rate
+	 * (tegracam call order: gain -> exposure -> frame_rate), so
+	 * SHR ends up referenced to a frame_length that frame_rate
+	 * may later overwrite with a different VMAX. Restore once
+	 * either the call ordering is fixed or set_frame_rate
+	 * recomputes SHR.
+	 */
+	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
+	return 0;
 }
 
 static int imx283_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
 {
-	struct camera_common_data *s_data = tc_dev->s_data;
-	struct imx283 *priv = (struct imx283 *)tc_dev->priv;
-	struct device *dev = tc_dev->dev;
-	const struct sensor_mode_properties *mode =
-		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
-	imx283_reg vmax_regs[3];
-	u32 vmax;
-	int err, i;
-
-	dev_dbg(dev, "%s: val: %lld\n", __func__, val);
-
-	if (val == 0 || mode->image_properties.line_length == 0)
-		return -EINVAL;
-
-	vmax = mode->signal_properties.pixel_clock.val *
-	       mode->control_properties.framerate_factor /
-	       mode->image_properties.line_length / val;
-
-	if (vmax < IMX283_MIN_FRAME_LENGTH)
-		vmax = IMX283_MIN_FRAME_LENGTH;
-	else if (vmax > IMX283_MAX_FRAME_LENGTH)
-		vmax = IMX283_MAX_FRAME_LENGTH;
-
-	dev_dbg(dev, "%s: %lld fps(e-6), vmax: %u lines\n", __func__, val,
-		vmax);
-
-	imx283_get_vmax_regs(vmax_regs, vmax);
-	for (i = 0; i < 3; i++) {
-		err = imx283_write_reg(s_data, vmax_regs[i].addr,
-				       vmax_regs[i].val);
-		if (err) {
-			dev_err(dev, "%s: VMAX write error\n", __func__);
-			return err;
-		}
-	}
-
-	priv->frame_length = vmax;
-
+	/*
+	 * Stub: frame rate stays at the VMAX value programmed by the
+	 * mode table (VMAX = 4000 lines, ~10 fps with HMAX = 1800).
+	 *
+	 * The previous implementation wrote IMX283_VMAX_LSB/MID/MSB
+	 * computed from the requested rate but left SHR unchanged, so
+	 * a sequence of set_exposure -> set_frame_rate could leave
+	 * SHR referenced to the previous VMAX. Restore once SHR/VMAX
+	 * are kept consistent across the setter call sequence.
+	 */
+	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
 	return 0;
 }
 
