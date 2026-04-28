@@ -47,27 +47,27 @@ dtbo: $(addprefix $(BUILD_DIR)/,$(DTBO))
 module: $(BUILD_DIR)/nv_imx283.ko
 
 $(DT_HEADER): | $(BUILD_DIR)
-	@echo "  FETCH NVIDIA device tree headers"
+	@echo "  FETCH   NVIDIA device tree headers"
 	@./scripts/fetch-nvidia-headers.sh $(LOCAL_INCLUDE)
 
 $(CONFTEST_H): | $(BUILD_DIR)
-	@echo "  GEN   conftest.h"
+	@echo "  GEN     conftest.h"
 	@./scripts/conftest.sh $(LOCAL_INCLUDE) $(KDIR)
 
 # Build device tree overlay (pattern rule for all DTS variants)
 $(BUILD_DIR)/%.dtbo: %.dts $(DT_HEADER) | $(BUILD_DIR)
-	@echo "  CPP   $<"
+	@echo "  CPP     $<"
 	@$(CPP) $(CPP_FLAGS) -o $(BUILD_DIR)/$*.dts.preprocessed $<
 	@# DTS defaults to 22pin (JetPack 6.2.2+). Patch to 24pin for L4T < 36.5.
 	@if [ $$(($(L4T_MAJOR) * 100 + $(L4T_MINOR))) -lt 3605 ]; then \
-		echo "  PATCH jetson-header-name -> 24pin (L4T $(L4T_MAJOR).$(L4T_MINOR))"; \
+		echo "  PATCH   jetson-header-name -> 24pin (L4T $(L4T_MAJOR).$(L4T_MINOR))"; \
 		sed -i 's|Jetson 22pin CSI Connector|Jetson 24pin CSI Connector|' \
 			$(BUILD_DIR)/$*.dts.preprocessed; \
 	fi
-	@echo "  DTC   $@"
+	@echo "  DTC     $@"
 	@$(DTC) $(DTC_FLAGS) -o $@ $(BUILD_DIR)/$*.dts.preprocessed
 	@rm -f $(BUILD_DIR)/$*.dts.preprocessed
-	@echo "  Built: $@"
+	@echo "  BUILT   $@"
 
 # Build kernel module -- all kbuild artifacts go into build/
 $(BUILD_DIR)/nv_imx283.ko: $(KBUILD_SRCS) $(CONFTEST_H) | $(BUILD_DIR)
@@ -76,12 +76,12 @@ $(BUILD_DIR)/nv_imx283.ko: $(KBUILD_SRCS) $(CONFTEST_H) | $(BUILD_DIR)
 	@for f in $(KBUILD_SRCS); do \
 		ln -sf $(SRC_DIR)/$$f $(BUILD_DIR)/$$f; \
 	done
-	@echo "  KBUILD nv_imx283.ko"
-	$(MAKE) -C $(KDIR) M=$(BUILD_DIR) \
+	@echo "  KBUILD  nv_imx283.ko"
+	@$(MAKE) -C $(KDIR) M=$(BUILD_DIR) \
 		KBUILD_EXTRA_SYMBOLS=$(NV_OOT)/Module.symvers \
 		CFLAGS_MODULE="-I$(LOCAL_INCLUDE) -I$(NV_OOT)/include" \
 		modules
-	@echo "  Built: $(BUILD_DIR)/nv_imx283.ko"
+	@echo "  BUILT   $@"
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
@@ -91,10 +91,11 @@ install: $(addprefix $(BUILD_DIR)/,$(DTBO)) $(BUILD_DIR)/nv_imx283.ko
 		echo "  INSTALL $$dtbo -> /boot/$$dtbo"; \
 		sudo cp $(BUILD_DIR)/$$dtbo /boot/$$dtbo; \
 	done
-	@echo "  RELOAD nv_imx283.ko"
+	@echo "  RELOAD  nv_imx283.ko"
 	@sudo rmmod nv_imx283 2>/dev/null || true
-	sudo insmod $(BUILD_DIR)/nv_imx283.ko
-	@echo "  Done. Module loaded (non-persistent, use setup.sh for permanent install)."
+	@sudo insmod $(BUILD_DIR)/nv_imx283.ko
+	@echo "  DONE    nv_imx283.ko loaded (non-persistent; setup.sh for permanent)"
 
 clean:
-	rm -rf $(BUILD_DIR)
+	@echo "  CLEAN   $(BUILD_DIR)"
+	@rm -rf $(BUILD_DIR)
