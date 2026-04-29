@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (c) 2026, UAB Kurokesu. All rights reserved.
 #
@@ -17,7 +17,7 @@ DKMS_SRC="/usr/src/${PACKAGE_NAME}-${VERSION}"
 
 # --- Check prerequisites ---
 
-if ! command -v dkms &>/dev/null; then
+if ! command -v dkms >/dev/null 2>&1; then
 	echo "Error: dkms is not installed. Install it with: sudo apt install --no-install-recommends dkms"
 	exit 1
 fi
