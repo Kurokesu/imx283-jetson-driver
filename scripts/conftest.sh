@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2023-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-FileCopyrightText: Copyright (c) 2026, UAB Kurokesu. All rights reserved.
 #
-# Minimal conftest.h generator for the nv_imx283 driver.
+# Minimal conftest.h generator
 #
 # Follows the same compile-test approach as NVIDIA's OOT conftest system
 # (nvidia-oot/scripts/conftest/) but only runs the tests needed by this driver.
@@ -33,6 +33,7 @@ ARCH="arm64"
 SOURCE_ARCH="$KERNEL_SRC/arch/$ARCH/include"
 
 CFLAGS="-O2 -D__KERNEL__"
+# shellcheck disable=SC2089
 CFLAGS="$CFLAGS -DKBUILD_BASENAME=\"#conftest\" -DKBUILD_MODNAME=\"#conftest\""
 CFLAGS="$CFLAGS -nostdinc -isystem $ISYSTEM"
 CFLAGS="$CFLAGS -Wno-implicit-function-declaration -Wno-strict-prototypes"
@@ -52,6 +53,7 @@ compile_test() {
 	CAT="$3"
 
 	echo "$CODE" > "${TMPFILE}.c"
+	# shellcheck disable=SC2086,SC2090
 	if $CC $CFLAGS -c "${TMPFILE}.c" -o "${TMPFILE}.o" > /dev/null 2>&1; then
 		# Compilation succeeded
 		if [ "$CAT" = "functions" ]; then
