@@ -15,23 +15,20 @@ VERSION=$(grep '^PACKAGE_VERSION=' "$SCRIPT_DIR/dkms.conf" | cut -d'"' -f2)
 PACKAGE_NAME=$(grep '^PACKAGE_NAME=' "$SCRIPT_DIR/dkms.conf" | cut -d'"' -f2)
 DKMS_SRC="/usr/src/${PACKAGE_NAME}-${VERSION}"
 
-# --- Check prerequisites ---
-
+# Check prerequisites
 if ! command -v dkms >/dev/null 2>&1; then
 	echo "Error: dkms is not installed. Install it with: sudo apt install --no-install-recommends dkms"
 	exit 1
 fi
 
-# --- Remove previous DKMS registration if present ---
-
+# Remove previous DKMS registration if present
 OLD_VER=$(dkms status -m "$PACKAGE_NAME" 2>/dev/null | cut -d'/' -f2 | cut -d',' -f1)
 if [ -n "$OLD_VER" ]; then
 	echo "Removing previous DKMS registration: ${PACKAGE_NAME}/${OLD_VER}"
 	dkms remove "${PACKAGE_NAME}/${OLD_VER}" --all || true
 fi
 
-# --- Copy source to DKMS tree ---
-
+# Copy source to DKMS tree
 echo "Copying driver source to ${DKMS_SRC}"
 rm -rf "$DKMS_SRC"
 mkdir -p "$DKMS_SRC"
@@ -42,15 +39,13 @@ cp "$SCRIPT_DIR/imx283_mode_tbls.h" "$DKMS_SRC/"
 cp "$SCRIPT_DIR"/tegra234-p3767-camera-p3768-imx283-*.dts "$DKMS_SRC/"
 cp -r "$SCRIPT_DIR/scripts" "$DKMS_SRC/"
 
-# --- Fetch NVIDIA device tree header (requires internet) ---
-
+# Fetch NVIDIA device tree headers (requires internet)
 echo "Fetching NVIDIA device tree headers..."
 "$DKMS_SRC/scripts/fetch-nvidia-headers.sh" "$DKMS_SRC/include"
 
-# --- DKMS add + build + install ---
-# POST_INSTALL in dkms.conf triggers dkms.postinst which builds the DTBO
-# and installs it to /boot.
-
+# DKMS add + build + install
+# POST_INSTALL in dkms.conf triggers dkms.postinst which builds the DTBO and
+# installs it to /boot.
 echo "DKMS: adding ${PACKAGE_NAME}/${VERSION}"
 dkms add -m "$PACKAGE_NAME" -v "$VERSION"
 
