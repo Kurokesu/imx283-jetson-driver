@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (c) 2026, UAB Kurokesu. All rights reserved.
 #
-# Install IMX283 camera driver (device tree overlay + kernel module via DKMS)
-# Supports JetPack 6.2.1 and 6.2.2
+# Install camera driver (device tree overlay + kernel module via DKMS)
 
 # Exit on errors
 set -e
@@ -37,9 +36,10 @@ rm -rf "$DKMS_SRC"
 mkdir -p "$DKMS_SRC"
 cp "$SCRIPT_DIR/dkms.conf" "$DKMS_SRC/"
 cp "$SCRIPT_DIR/dkms.postinst" "$DKMS_SRC/"
-cp "$SCRIPT_DIR/nv_imx283.c" "$DKMS_SRC/"
-cp "$SCRIPT_DIR/imx283_mode_tbls.h" "$DKMS_SRC/"
-cp "$SCRIPT_DIR"/tegra234-p3767-camera-p3768-imx283-*.dts "$DKMS_SRC/"
+cp "$SCRIPT_DIR/Makefile" "$DKMS_SRC/"
+cp "$SCRIPT_DIR"/*.c "$DKMS_SRC/"
+cp "$SCRIPT_DIR"/*.h "$DKMS_SRC/"
+cp "$SCRIPT_DIR"/*.dts "$DKMS_SRC/"
 cp -r "$SCRIPT_DIR/scripts" "$DKMS_SRC/"
 
 # Fetch NVIDIA device tree headers (requires internet)
