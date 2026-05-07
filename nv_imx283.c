@@ -4,26 +4,23 @@
  *
  * Copyright (c) 2016-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * Copyright (c) 2026, UAB Kurokesu. All rights reserved.
- *
- * Register definitions and init sequences derived from the RPi IMX283
- * V4L2 driver by Will Whang, Kieran Bingham, and Umang Jain.
  */
 
 #define DEBUG
 
 #include <nvidia/conftest.h>
 
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/seq_file.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/regmap.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 
+#include <media/tegra_v4l2_camera.h>
 #include <media/tegracam_core.h>
-#include <media/tegra-v4l2-camera.h>
 #include "imx283_mode_tbls.h"
 
 /*
@@ -81,9 +78,9 @@ static const u32 ctrl_cid_list[] = {
 struct imx283 {
 	struct i2c_client *i2c_client;
 	struct v4l2_subdev *subdev;
-	u32 frame_length;
 	struct camera_common_data *s_data;
 	struct tegracam_device *tc_dev;
+	u32 frame_length;
 };
 
 static const struct regmap_config sensor_regmap_config = {
@@ -642,29 +639,24 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 		imx283_read_reg(s_data, IMX283_TPG_CTRL, &tpg_ctrl);
 		imx283_read_reg(s_data, IMX283_TPG_PAT, &tpg_pat);
 
-		dev_info(tc_dev->dev,
-			 "start_streaming: STANDBY=0x%02x XMSTA=0x%02x (expect 0x00)\n",
-			 standby, xmsta);
+		dev_info(
+			tc_dev->dev,
+			"start_streaming: STANDBY=0x%02x XMSTA=0x%02x (expect 0x00)\n",
+			standby, xmsta);
 		dev_info(tc_dev->dev,
 			 "  MDSEL3=0x%02x MDSEL4=0x%02x HTRIMMING=0x%02x\n",
 			 mdsel3, mdsel4, htrim);
 		dev_info(tc_dev->dev,
 			 "  HTRIM_START=%u HTRIM_END=%u (line_width=%u)\n",
-			 hts_l | (hts_h << 8),
-			 hte_l | (hte_h << 8),
+			 hts_l | (hts_h << 8), hte_l | (hte_h << 8),
 			 (hte_l | (hte_h << 8)) - (hts_l | (hts_h << 8)));
 		dev_info(tc_dev->dev,
 			 "  Y_OUT=%u WRITE_VSIZE=%u OB_V=%u EBD_X=%u\n",
-			 yout_l | (yout_h << 8),
-			 wvs_l | (wvs_h << 8),
-			 obv,
+			 yout_l | (yout_h << 8), wvs_l | (wvs_h << 8), obv,
 			 ebd_l | (ebd_h << 8));
-		dev_info(tc_dev->dev,
-			 "  VWINPOS=%u VWIDCUT=%u\n",
-			 vwp_l | (vwp_h << 8),
-			 vwc_l | (vwc_h << 8));
-		dev_info(tc_dev->dev,
-			 "  HMAX=%u VMAX=%u\n",
+		dev_info(tc_dev->dev, "  VWINPOS=%u VWIDCUT=%u\n",
+			 vwp_l | (vwp_h << 8), vwc_l | (vwc_h << 8));
+		dev_info(tc_dev->dev, "  HMAX=%u VMAX=%u\n",
 			 hmax_l | (hmax_h << 8),
 			 vmax_l | (vmax_m << 8) | (vmax_h << 16));
 		dev_info(tc_dev->dev,
@@ -706,7 +698,7 @@ static int imx283_board_setup(struct imx283 *priv)
 	struct camera_common_data *s_data = priv->s_data;
 	struct device *dev = s_data->dev;
 	u8 reg_val;
-	int err;
+	int err = 0;
 
 	/* Skip mclk enable as this camera module has an on-board oscillator */
 
