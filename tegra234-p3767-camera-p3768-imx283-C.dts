@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-FileCopyrightText: Copyright (c) 2026, UAB Kurokesu. All rights reserved.
 
 /dts-v1/;
@@ -7,7 +7,7 @@
 
 #define CAM0_PWDN	TEGRA234_MAIN_GPIO(H, 6)
 #define CAM1_PWDN	TEGRA234_MAIN_GPIO(AC, 0)
-#define CAM_I2C_MUX	TEGRA234_AON_GPIO(CC, 3)
+#define CAM_I2C_MUX 	TEGRA234_AON_GPIO(CC, 3)
 
 #include <dt-bindings/tegra234-p3767-0000-common.h>
 
@@ -15,7 +15,7 @@
 	overlay-name = "Camera IMX283-C";
 	jetson-header-name = "Jetson 22pin CSI Connector";
 	compatible = JETSON_COMPATIBLE_P3768;
-	/* IMX283 connected to cam1 port -- 4-lane CSI */
+	/* IMX283 connected to cam1 port (4-lane) */
 
 	fragment@0 {
 		target-path = "/";
@@ -37,19 +37,18 @@
 			};
 			tegra-camera-platform {
 				compatible = "nvidia, tegra-camera-platform";
-				num_csi_lanes = <4>;
-				max_lane_speed = <1500000>;
-				min_bits_per_pixel = <12>;
-				vi_peak_byte_per_pixel = <2>;
-				vi_bw_margin_pct = <25>;
-				max_pixel_rate = <7500000>;
-				isp_peak_byte_per_pixel = <5>;
-				isp_bw_margin_pct = <25>;
-
+				/**
+				 * The general guideline for naming badge_info contains 3 parts, and is as follows,
+				 * The first part is the camera_board_id for the module; if the module is in a FFD
+				 * platform, then use the platform name for this part.
+				 * The second part contains the position of the module, ex. "rear" or "front".
+				 * The third part contains the last 6 characters of a part number which is found
+				 * in the module's specsheet from the vendor.
+				 */
 				modules {
 					module1 {
-						badge = "kurokesu_rear_283M12";
-						position = "rear";
+						badge = "kurokesu_front_283CSI";
+						position = "front";
 						orientation = "0";
 						drivernode0 {
 							pcl_id = "v4l2_sensor";
@@ -102,71 +101,114 @@
 						rbpcv3_imx283_c@1a {
 							reset-gpios = <&gpio CAM1_PWDN GPIO_ACTIVE_HIGH>;
 							compatible = "sony,imx283";
+							/* I2C device address */
 							reg = <0x1a>;
+							/* V4L2 device node location */
 							devnode = "video0";
-
-							physical_w = "15.0";
-							physical_h = "10.0";
+							/* Physical dimensions of sensor */
+							physical_w = "13.2";
+							physical_h = "8.8";
 							sensor_model = "imx283";
-
-							delayed_gain = "false";
-							use_decibel_gain = "false";
 							use_sensor_mode_id = "true";
-
-							mode0 { /* IMX283_MODE_5568X3648_12BIT_4LANE */
+							/**
+							* ==== Modes ====
+							* A modeX node is required to support v4l2 driver
+							* implementation with NVIDIA camera software stack
+							*
+							* == Signal properties ==
+							*
+							* phy_mode = "";
+							* PHY mode used by the MIPI lanes for this device
+							*
+							* tegra_sinterface = "";
+							* CSI Serial interface connected to tegra
+							* Incase of virtual HW devices, use virtual
+							* For SW emulated devices, use host
+							*
+							* pix_clk_hz = "";
+							* Sensor pixel clock used for calculations like exposure and framerate
+							*
+							* readout_orientation = "0";
+							* Based on camera module orientation.
+							* Only change readout_orientation if you specifically
+							* Program a different readout order for this mode
+							*
+							* lane_polarity
+							* Based on the camera connector pin.
+							* CSIx_D0 | CSIx_D1 | CSI(X+1)_D0 | CSI(X+1)CSIx_D1
+							*    LSB  |   BIT1  |     BIT2    |      MSB
+							* if there is a polarity swap on any lane, the bit corrsponding
+							* to the lane should be set
+							* e.g. polarity swap on CSIx_D0 only -> lane_polarity = "1"; 0001
+							* e.g. polarity swap on CSIx_D1 and CSI(X+1)_D0 -> lane_polarity = "6"; 0110
+							*
+							* == Image format Properties ==
+							*
+							* active_w = "";
+							* Pixel active region width
+							*
+							* active_h = "";
+							* Pixel active region height
+							*
+							* pixel_t = "";
+							* The sensor readout pixel pattern
+							*
+							* line_length = "";
+							* Pixel line length (width) for sensor mode.
+							*
+							* == Source Control Settings ==
+							*
+							* Gain factor used to convert fixed point integer to float
+							* Gain range [min_gain/gain_factor, max_gain/gain_factor]
+							* Gain step [step_gain/gain_factor is the smallest step that can be configured]
+							* Default gain [Default gain to be initialized for the control.
+							*     use min_gain_val as default for optimal results]
+							* Framerate factor used to convert fixed point integer to float
+							* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
+							* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
+							* Default Framerate [Default framerate to be initialized for the control.
+							*     use max_framerate to get required performance]
+							* Exposure factor used to convert fixed point integer to float
+							* For convenience use 1 sec = 1000000us as conversion factor
+							* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
+							* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
+							* Default Exposure Time [Default exposure to be initialized for the control.
+							*     Set default exposure based on the default_framerate for optimal exposure settings]
+							*
+							* gain_factor = ""; (integer factor used for floating to fixed point conversion)
+							* min_gain_val = ""; (ceil to integer)
+							* max_gain_val = ""; (ceil to integer)
+							* step_gain_val = ""; (ceil to integer)
+							* default_gain = ""; (ceil to integer)
+							* Gain limits for mode
+							*
+							* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
+							* min_exp_time = ""; (ceil to integer)
+							* max_exp_time = ""; (ceil to integer)
+							* step_exp_time = ""; (ceil to integer)
+							* default_exp_time = ""; (ceil to integer)
+							* Exposure Time limits for mode (sec)
+							*
+							* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
+							* min_framerate = ""; (ceil to integer)
+							* max_framerate = ""; (ceil to integer)
+							* step_framerate = ""; (ceil to integer)
+							* default_framerate = ""; (ceil to integer)
+							* Framerate limits for mode (fps)
+							*
+							* embedded_metadata_height = "";
+							* Sensor embedded metadata height in units of rows.
+							* If sensor does not support embedded metadata value should be 0.
+							*/
+							mode0 { /* IMX283_MODE_5568X3648 */
 								mclk_khz = "24000";
 								num_lanes = "4";
 								tegra_sinterface = "serial_c";
 								phy_mode = "DPHY";
-								/*
-								 * IMX283 emits the CSI-2 D-PHY clock
-								 * in CONTINUOUS HS mode during normal
-								 * streaming (per IMX283 Support
-								 * Package section 4.1.3, "Escape
-								 * mode": the sensor only enters ULPS
-								 * on power on/off and standby).
-								 * Tegra must be told the clock is
-								 * continuous, otherwise NVCSI waits
-								 * for HS exit/entry events that
-								 * never arrive between lines and
-								 * payload CRC checks fail.
-								 */
 								discontinuous_clk = "no";
 								dpcm_enable = "false";
-								/*
-								 * "0" lets NVCSI auto-compute
-								 * THS-SETTLE; this matches every
-								 * NVIDIA reference camera DTS and is
-								 * in-spec for both 1440 Mbps and the
-								 * current 720 Mbps rate.
-								 */
 								cil_settletime = "0";
 								lane_polarity = "0";
-
-								/*
-								 * 5568 = full on-wire line width:
-								 * 96 non-effective pixels (HOB/OB)
-								 * + 5472 effective aperture. The
-								 * sensor HTRIMMING registers crop
-								 * only inside the 5472-pixel area;
-								 * the leading 96 HOB cols still
-								 * appear on MIPI as zero-valued
-								 * RAW12 pixels in every pixel line
-								 * (DT 0x2C). active_w must match the
-								 * on-wire width to satisfy chansel's
-								 * per-line pixel counter.
-								 *
-								 * IMX283 Mode 0 horizontal layout
-								 * (datasheet p.47):
-								 *
-								 *   |<- 96 non-eff -->|<-- 5472 eff -->|
-								 *   | 48 HOB | 24 OB |12|12| aperture  |
-								 *
-								 * active_h matches Y_OUT_SIZE; both
-								 * dimensions are even as Tegra VI
-								 * requires. Userspace can crop the
-								 * 96 leading cols at display.
-								 */
 								active_w = "5568";
 								active_h = "3648";
 								mode_type = "bayer";
@@ -174,79 +216,27 @@
 								dynamic_pixel_bit_depth = "12";
 								csi_pixel_bit_depth = "12";
 								readout_orientation = "0";
-
-								/*
-								 * MIPI data rate = 720 Mbps/lane x 4 lanes
-								 *                / 12 bpp = 240 Mpix/s.
-								 * HTotal (line_length) x VTotal x FPS
-								 *     = 6096 x 4000 x 10 = 243.8 Mpix/s
-								 * (fits within 240 Mpix/s with margin).
-								 *
-								 * Bit rate halved from 1440 Mbps to keep
-								 * the Tegra DPHY data eye open for
-								 * payloads with multi-bit runs (see
-								 * imx283_mode_tbls.h for the matching
-								 * HS-timing register block and HMAX
-								 * sizing).
-								 *
-								 * line_length is the H total of the
-								 * Tegra-side FPS math (>= active_w);
-								 * not used for per-line pixel counting.
-								 *
-								 * mclk_multiplier must be > pix_clk_hz/
-								 * mclk = 240/24 = 10; 25 leaves ISP
-								 * headroom.
-								 */
 								line_length = "6096";
 								inherent_gain = "1";
 								mclk_multiplier = "25";
 								pix_clk_hz = "240000000";
-
-								/*
-								 * Gain: raw register units 0..1957.
-								 * gain[dB] = -20*log10((2048 - reg) / 2048)
-								 */
 								gain_factor = "1";
+								framerate_factor = "1000000";
+								exposure_factor = "1000000";
 								min_gain_val = "0";
 								max_gain_val = "1957";
 								step_gain_val = "1";
 								default_gain = "0";
-
-								framerate_factor = "1000000";
+								min_hdr_ratio = "1";
+								max_hdr_ratio = "1";
 								min_framerate = "1000000";    /* 1 fps */
-								/*
-								 * max_framerate must match what the
-								 * sensor can actually deliver. At
-								 * HMAX=1800 the minimum frame period
-								 * is HMAX * VMAX_min / 72 MHz = 1800
-								 * * 3793 / 72e6 = 94.8 ms, i.e. a
-								 * 10.5 fps ceiling. Advertising 11
-								 * fps causes libargus to reprogram
-								 * VMAX=3793 and expect frames every
-								 * 90.9 ms, then tear the consumer
-								 * pipeline down when the first frame
-								 * arrives late.
-								 */
 								max_framerate = "10000000";   /* 10 fps */
 								step_framerate = "1";
 								default_framerate = "10000000"; /* 10 fps */
-
-								exposure_factor = "1000000";
 								min_exp_time = "50";          /* 50 us */
 								max_exp_time = "49860";       /* ~49.9 ms */
 								step_exp_time = "1";
 								default_exp_time = "10000";   /* 10 ms */
-
-								min_hdr_ratio = "1";
-								max_hdr_ratio = "1";
-
-								/*
-								 * Pair with sensor EBD_X_OUT_SIZE = 0
-								 * (see imx283_mode_tbls.h). Mismatch
-								 * leaves Tegra VI's chansel waiting
-								 * on an EBD line that the sensor
-								 * does not emit, stalling capture.
-								 */
 								embedded_metadata_height = "0";
 							};
 							ports {
@@ -268,7 +258,7 @@
 					camera-control-output-low {
 						gpio-hog;
 						output-low;
-						gpios = <CAM1_PWDN 0 CAM0_PWDN 0>;
+						gpios = <CAM1_PWDN 0  CAM0_PWDN 0>;
 						label = "cam1-pwdn", "cam0-pwdn";
 					};
 				};
