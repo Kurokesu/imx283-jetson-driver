@@ -24,12 +24,9 @@
 #include "imx283_mode_tbls.h"
 
 /*
- * Chip "ID" -- the standby register power-on default.
- * IMX283 has no dedicated chip-id register; reading 0x3000 after reset
- * returns 0x0B (STANDBY | STBLOGIC | STBDV).
+ * Chip "ID" - standby register power-on default.
  */
-#define IMX283_CHIP_ID_ADDR 0x3000
-#define IMX283_CHIP_ID_VAL 0x0B
+#define IMX283_CHIP_ID 0x0B
 
 /* Timing limits */
 #define IMX283_MIN_FRAME_LENGTH (3793)
@@ -715,20 +712,17 @@ static int imx283_board_setup(struct imx283 *priv)
 		goto done;
 	}
 
-	/*
-	 * Probe: read the standby register.  After a clean power-on it should
-	 * read 0x0B (STANDBY | STBLOGIC | STBDV).
-	 */
-	err = imx283_read_reg(s_data, IMX283_CHIP_ID_ADDR, &reg_val);
+	err = imx283_read_reg(s_data, IMX283_REG_STANDBY, &reg_val);
 	if (err) {
-		dev_err(dev, "%s: i2c read probe failed (%d)\n", __func__, err);
+		dev_err(dev, "%s: error during i2c read probe (%d)\n", __func__,
+			err);
 		goto err_reg_probe;
 	}
 
-	if (reg_val != IMX283_CHIP_ID_VAL) {
+	if (reg_val != IMX283_CHIP_ID) {
 		dev_err(dev,
 			"%s: unexpected standby reg value: 0x%02x (expected 0x%02x)\n",
-			__func__, reg_val, IMX283_CHIP_ID_VAL);
+			__func__, reg_val, IMX283_CHIP_ID);
 		err = -ENODEV;
 		goto err_reg_probe;
 	}
