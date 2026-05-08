@@ -157,12 +157,6 @@ static inline void imx283_get_shr_regs(imx283_reg *regs, u16 shr)
 	(regs + 1)->val = shr & 0xFF;
 }
 
-static int imx283_set_group_hold(struct tegracam_device *tc_dev, bool val)
-{
-	/* IMX283 has no group hold register; no-op. */
-	return 0;
-}
-
 static int imx283_set_gain(struct tegracam_device *tc_dev, s64 val)
 {
 	/*
@@ -264,6 +258,19 @@ static int imx283_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
 	 */
 	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
 	return 0;
+}
+
+static int imx283_set_group_hold(struct tegracam_device *tc_dev, bool val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct device *dev = tc_dev->dev;
+	int err = 0;
+
+	err = imx283_write_reg(s_data, IMX283_REG_REGHOLD, val);
+	if (err)
+		dev_dbg(dev, "%s: Group hold control error\n", __func__);
+
+	return err;
 }
 
 static struct tegracam_ctrl_ops imx283_ctrl_ops = {
