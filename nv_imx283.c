@@ -138,22 +138,22 @@ static int imx283_write_table(struct imx283 *priv, const imx283_reg table[])
 
 static inline void imx283_get_vmax_regs(imx283_reg *regs, u32 vmax)
 {
-	regs->addr = IMX283_VMAX_MSB;
+	regs->addr = IMX283_REG_VMAX_MSB;
 	regs->val = (vmax >> 16) & 0xFF;
 
-	(regs + 1)->addr = IMX283_VMAX_MID;
+	(regs + 1)->addr = IMX283_REG_VMAX_MID;
 	(regs + 1)->val = (vmax >> 8) & 0xFF;
 
-	(regs + 2)->addr = IMX283_VMAX_LSB;
+	(regs + 2)->addr = IMX283_REG_VMAX_LSB;
 	(regs + 2)->val = vmax & 0xFF;
 }
 
 static inline void imx283_get_shr_regs(imx283_reg *regs, u16 shr)
 {
-	regs->addr = IMX283_SHR_MSB;
+	regs->addr = IMX283_REG_SHR_MSB;
 	regs->val = (shr >> 8) & 0xFF;
 
-	(regs + 1)->addr = IMX283_SHR_LSB;
+	(regs + 1)->addr = IMX283_REG_SHR_LSB;
 	(regs + 1)->val = shr & 0xFF;
 }
 
@@ -580,12 +580,12 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 				  test_mode - 1 :
 				  0;
 
-		err = imx283_write_reg(s_data, IMX283_TPG_PAT,
+		err = imx283_write_reg(s_data, IMX283_REG_TPG_PAT,
 				       imx283_tpg_val[pat_idx]);
 		if (err)
 			return err;
 
-		err = imx283_write_reg(s_data, IMX283_TPG_CTRL, 0x11);
+		err = imx283_write_reg(s_data, IMX283_REG_TPG_CTRL, 0x11);
 		if (err)
 			return err;
 	}
@@ -611,33 +611,33 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 		u8 ebd_l = 0, ebd_h = 0;
 		u8 tpg_ctrl = 0, tpg_pat = 0;
 
-		imx283_read_reg(s_data, IMX283_STANDBY, &standby);
-		imx283_read_reg(s_data, IMX283_XMSTA, &xmsta);
-		imx283_read_reg(s_data, IMX283_MDSEL3, &mdsel3);
-		imx283_read_reg(s_data, IMX283_MDSEL4, &mdsel4);
-		imx283_read_reg(s_data, IMX283_HTRIMMING, &htrim);
-		imx283_read_reg(s_data, IMX283_Y_OUT_SIZE_LSB, &yout_l);
-		imx283_read_reg(s_data, IMX283_Y_OUT_SIZE_MSB, &yout_h);
-		imx283_read_reg(s_data, IMX283_WRITE_VSIZE_LSB, &wvs_l);
-		imx283_read_reg(s_data, IMX283_WRITE_VSIZE_MSB, &wvs_h);
-		imx283_read_reg(s_data, IMX283_OB_SIZE_V, &obv);
-		imx283_read_reg(s_data, IMX283_HMAX_LSB, &hmax_l);
-		imx283_read_reg(s_data, IMX283_HMAX_MSB, &hmax_h);
-		imx283_read_reg(s_data, IMX283_VMAX_LSB, &vmax_l);
-		imx283_read_reg(s_data, IMX283_VMAX_MID, &vmax_m);
-		imx283_read_reg(s_data, IMX283_VMAX_MSB, &vmax_h);
-		imx283_read_reg(s_data, IMX283_HTRIMMING_START_LSB, &hts_l);
-		imx283_read_reg(s_data, IMX283_HTRIMMING_START_MSB, &hts_h);
-		imx283_read_reg(s_data, IMX283_HTRIMMING_END_LSB, &hte_l);
-		imx283_read_reg(s_data, IMX283_HTRIMMING_END_MSB, &hte_h);
-		imx283_read_reg(s_data, IMX283_VWINPOS_LSB, &vwp_l);
-		imx283_read_reg(s_data, IMX283_VWINPOS_MSB, &vwp_h);
-		imx283_read_reg(s_data, IMX283_VWIDCUT_LSB, &vwc_l);
-		imx283_read_reg(s_data, IMX283_VWIDCUT_MSB, &vwc_h);
-		imx283_read_reg(s_data, IMX283_EBD_X_OUT_SIZE_LSB, &ebd_l);
-		imx283_read_reg(s_data, IMX283_EBD_X_OUT_SIZE_MSB, &ebd_h);
-		imx283_read_reg(s_data, IMX283_TPG_CTRL, &tpg_ctrl);
-		imx283_read_reg(s_data, IMX283_TPG_PAT, &tpg_pat);
+		imx283_read_reg(s_data, IMX283_REG_STANDBY, &standby);
+		imx283_read_reg(s_data, IMX283_REG_XMSTA, &xmsta);
+		imx283_read_reg(s_data, IMX283_REG_MDSEL3, &mdsel3);
+		imx283_read_reg(s_data, IMX283_REG_MDSEL4, &mdsel4);
+		imx283_read_reg(s_data, IMX283_REG_HTRIMMING, &htrim);
+		imx283_read_reg(s_data, IMX283_REG_Y_OUT_SIZE_LSB, &yout_l);
+		imx283_read_reg(s_data, IMX283_REG_Y_OUT_SIZE_MSB, &yout_h);
+		imx283_read_reg(s_data, IMX283_REG_WRITE_VSIZE_LSB, &wvs_l);
+		imx283_read_reg(s_data, IMX283_REG_WRITE_VSIZE_MSB, &wvs_h);
+		imx283_read_reg(s_data, IMX283_REG_OB_SIZE_V, &obv);
+		imx283_read_reg(s_data, IMX283_REG_HMAX_LSB, &hmax_l);
+		imx283_read_reg(s_data, IMX283_REG_HMAX_MSB, &hmax_h);
+		imx283_read_reg(s_data, IMX283_REG_VMAX_LSB, &vmax_l);
+		imx283_read_reg(s_data, IMX283_REG_VMAX_MID, &vmax_m);
+		imx283_read_reg(s_data, IMX283_REG_VMAX_MSB, &vmax_h);
+		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_START_LSB, &hts_l);
+		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_START_MSB, &hts_h);
+		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_END_LSB, &hte_l);
+		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_END_MSB, &hte_h);
+		imx283_read_reg(s_data, IMX283_REG_VWINPOS_LSB, &vwp_l);
+		imx283_read_reg(s_data, IMX283_REG_VWINPOS_MSB, &vwp_h);
+		imx283_read_reg(s_data, IMX283_REG_VWIDCUT_LSB, &vwc_l);
+		imx283_read_reg(s_data, IMX283_REG_VWIDCUT_MSB, &vwc_h);
+		imx283_read_reg(s_data, IMX283_REG_EBD_X_OUT_SIZE_LSB, &ebd_l);
+		imx283_read_reg(s_data, IMX283_REG_EBD_X_OUT_SIZE_MSB, &ebd_h);
+		imx283_read_reg(s_data, IMX283_REG_TPG_CTRL, &tpg_ctrl);
+		imx283_read_reg(s_data, IMX283_REG_TPG_PAT, &tpg_pat);
 
 		dev_info(
 			tc_dev->dev,
