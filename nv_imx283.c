@@ -106,7 +106,7 @@ static inline int imx283_read_reg(struct camera_common_data *s_data, u16 addr,
 static inline int imx283_write_reg(struct camera_common_data *s_data, u16 addr,
 				   u8 val)
 {
-	int err;
+	int err = 0;
 
 	err = regmap_write(s_data->regmap, addr, val);
 	if (err)
@@ -118,7 +118,7 @@ static inline int imx283_write_reg(struct camera_common_data *s_data, u16 addr,
 
 static int imx283_write_table(struct imx283 *priv, const imx283_reg table[])
 {
-	int err;
+	int err = 0;
 
 	dev_dbg(priv->s_data->dev, "%s: Writing register table\n", __func__);
 
@@ -545,7 +545,7 @@ error:
 static int imx283_set_mode(struct tegracam_device *tc_dev)
 {
 	struct imx283 *priv = (struct imx283 *)tegracam_get_privdata(tc_dev);
-	int err;
+	int err = 0;
 
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
 
@@ -566,7 +566,7 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
 	struct imx283 *priv = (struct imx283 *)tegracam_get_privdata(tc_dev);
-	int err;
+	int err = 0;
 
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
 
@@ -670,7 +670,7 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 static int imx283_stop_streaming(struct tegracam_device *tc_dev)
 {
 	struct imx283 *priv = (struct imx283 *)tegracam_get_privdata(tc_dev);
-	int err;
+	int err = 0;
 
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
 	err = imx283_write_table(priv, mode_table[IMX283_STOP_STREAM]);
@@ -756,7 +756,7 @@ static int imx283_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct tegracam_device *tc_dev;
 	struct imx283 *priv;
-	int err;
+	int err = 0;
 
 	dev_dbg(dev, "probing v4l2 sensor at addr 0x%0x\n", client->addr);
 
