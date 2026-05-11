@@ -76,73 +76,32 @@
 #define IMX283_REG_EBD_X_OUT_SIZE_LSB 0x3A54
 #define IMX283_REG_EBD_X_OUT_SIZE_MSB 0x3A55
 
-/* Readout mode field values for Mode 0 (12-bit) */
-#define IMX283_MDSEL3_VCROP_EN 0x20
-#define IMX283_MDSEL4_VCROP_EN 0x50
-
 /* Standby register bit fields */
 #define IMX283_STBLOGIC 0x02
 #define IMX283_STBDV 0x08
 
+/* CLAMP register bit fields */
+#define IMX283_CLPSQRST BIT(4)
+
+/* MDSEL registers bit fields */
+#define IMX283_MDSEL3_VCROP_EN BIT(5)
+#define IMX283_MDSEL4_VCROP_EN (BIT(4) | BIT(6))
+
 #define imx283_reg struct reg_8
 
-/*
- * Standby cancel phase 1 + 2 (datasheet page 77):
- *   - Partial standby (STBLOGIC=1, STBDV=1)
- *   - PLL input frequency config for 24 MHz INCK
- *   - Communication init (PLSTMG)
- *   - Enable PLL (STBPL=0)
- *   - MIPI timing for 720 Mbps data rate (360 MHz link freq)
- *   - >= 1 ms stabilisation
- *   - Exit standby (STANDBY=0)
- *   - >= 19 ms stabilisation
- *
- * After this table the sensor is fully active but not yet in master
- * mode (XMSTA defaults to 1 = master mode stop per datasheet). The
- * transition to "Normal operation" (CLAMP/XMSTA/SYNCDRV) is deferred
- * to imx283_start so that MIPI output begins exactly when tegracam
- * calls start_streaming, matching the datasheet phase-3 sequence.
- */
 static imx283_reg imx283_mode_common[] = {
-	/* Partial standby */
 	{ IMX283_REG_STANDBY, IMX283_STBLOGIC | IMX283_STBDV },
-
-	/*
-	 * PLL input frequency config for 24 MHz INCK.
-	 * Values from RPi driver imx283_frequencies[24 MHz].
-	 */
 	{ IMX283_REG_PLRD1, 0x02 },
 	{ IMX283_REG_PLRD2_LSB, 0xF0 },
 	{ IMX283_REG_PLRD2_MSB, 0x00 },
 	{ IMX283_REG_PLRD3, 0x02 },
 	{ IMX283_REG_PLRD4, 0xC0 },
-
-	/* Communication init */
 	{ IMX283_REG_PLSTMG08, 0x77 },
 	{ IMX283_REG_PLSTMG02, 0x00 },
-
-	/* Enable PLL (must be the last write before the 1 ms wait) */
 	{ IMX283_REG_STBPL, 0x00 },
-
-	/*
-	 * MIPI timing for 720 Mbps data rate (360 MHz link freq).
-	 * Values from RPi driver mipi_data_rate_720Mbps[].
-	 *
-	 * Bit rate halved from the IMX283 default 1440 Mbps to keep the
-	 * Tegra DPHY data eye open for payloads with multi-bit runs;
-	 * 1440 Mbps is marginal on this hardware path and produces
-	 * pattern-dependent payload CRC errors in non-test data.
-	 *
-	 * Line burst at 720 Mbps: 5568 px * 12 bit / 4 lanes = 16704
-	 * bits/lane = 23.2 us. HMAX must therefore be >= 1670 (in
-	 * 72 MHz units); the mode table below uses 1800 for ~7% margin.
-	 *
-	 * 0x36C5 and 0x3AC4 are undocumented sensor registers per the
-	 * RPi driver; their values differ between rate presets and
-	 * must be paired with the matching DPHY HS timings.
-	 */
 	{ 0x36C5, 0x01 },
 	{ 0x3AC4, 0x01 },
+	{ IMX283_REG_STBPL, 0x00 },
 	{ IMX283_REG_TCLKPOST, 0x77 },
 	{ IMX283_REG_THSPREPARE, 0x37 },
 	{ IMX283_REG_THSZERO, 0x67 },
@@ -165,6 +124,8 @@ static imx283_reg imx283_mode_common[] = {
 	/* 2nd stabilisation period (>= 19 ms) */
 	{ IMX283_TABLE_WAIT_MS, IMX283_WAIT_MS * 20 },
 
+	{ IMX283_REG_CLAMP, IMX283_CLPSQRST },
+	{ IMX283_REG_SYNCDRV, 0xA2 },
 	{ IMX283_TABLE_END, 0x00 },
 };
 
@@ -327,23 +288,14 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_TABLE_END, 0x00 },
 };
 
-/*
- * Standby cancel phase 3 (datasheet page 77, "Normal operation"):
- *   - CLPSQRST = 1
- *   - XMSTA    = 0  (master mode start -> MIPI output begins)
- *   - SYNCDRV  = 2  (XHS/XVS drive enabled)
- */
 static imx283_reg imx283_start[] = {
-	{ IMX283_REG_CLAMP, 0x10 },
 	{ IMX283_REG_XMSTA, 0x00 },
-	{ IMX283_REG_SYNCDRV, 0xA2 },
 	{ IMX283_TABLE_END, 0x00 },
 };
 
 /* Stop streaming: enter standby */
 static imx283_reg imx283_stop[] = {
 	{ IMX283_REG_STANDBY, IMX283_STBLOGIC },
-	{ IMX283_TABLE_WAIT_MS, IMX283_WAIT_MS * 30 },
 	{ IMX283_TABLE_END, 0x00 },
 };
 
