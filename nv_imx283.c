@@ -24,16 +24,16 @@
 #include "imx283_mode_tbls.h"
 
 /* Chip "ID" - standby register power-on default */
-#define IMX283_CHIP_ID 0x0B
+#define IMX283_CHIP_ID (0x0B)
 
 /* Timing limits */
 #define IMX283_FRAME_LENGTH_MIN (3793)
 #define IMX283_FRAME_LENGTH_MAX (0xFFFF)
 #define IMX283_FRAME_LENGTH_DEFAULT (4000)
-#define IMX283_MIN_SHR (11)
+#define IMX283_SHR_MIN (11)
 
-/* Analog gain: 11-bit value, 0..1957 */
-#define IMX283_ANA_GAIN_MAX 1957
+/* Analog gain formula constant: linear_gain = 2048 / (2048 - reg) */
+#define IMX283_GAIN_C0 (2048)
 
 /* TPG patterns (written to 0x3157) */
 #define IMX283_TPG_PAT_ALL_000 0x00
@@ -151,24 +151,54 @@ static inline void imx283_get_shr_regs(imx283_reg *regs, u16 shr)
 	(regs + 1)->val = shr & 0xFF;
 }
 
-static int imx283_set_gain(struct tegracam_device *tc_dev, s64 val)
+static inline void imx283_get_gain_regs(imx283_reg *regs, u16 gain)
 {
-	/*
-	 * Stub: gain stays at the mode-table default (register 0 =
-	 * unity). The tegracam control plumbing requires this hook
-	 * but writing IMX283_ANALOG_GAIN_LSB/MSB during Argus session
-	 * setup is currently destabilising capture; restore once that
-	 * path is verified.
-	 */
-	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
-	return 0;
+	regs->addr = IMX283_REG_ANALOG_GAIN_MSB;
+	regs->val = (gain >> 8) & 0x07;
+
+	(regs + 1)->addr = IMX283_REG_ANALOG_GAIN_LSB;
+	(regs + 1)->val = gain & 0xFF;
 }
 
-static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
+static int imx283_set_gain(struct tegracam_device *tc_dev, s64 val)
+{
+	struct camera_common_data *s_data = tc_dev->s_data;
+	const struct sensor_mode_properties *mode =
+		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
+	struct device *dev = tc_dev->dev;
+	imx283_reg reg_list[2];
+	u16 gain;
+	int err, i;
+
+	if (val < mode->control_properties.min_gain_val)
+		val = mode->control_properties.min_gain_val;
+	else if (val > mode->control_properties.max_gain_val)
+		val = mode->control_properties.max_gain_val;
+
+	gain = (u16)(IMX283_GAIN_C0 - (mode->control_properties.gain_factor *
+				       IMX283_GAIN_C0 / val));
+
+	dev_dbg(dev, "%s: val: %lld, gain_reg: %u\n", __func__, val, gain);
+
+	imx283_get_gain_regs(reg_list, gain);
+
+	for (i = 0; i < ARRAY_SIZE(reg_list); i++) {
+		err = imx283_write_reg(s_data, reg_list[i].addr,
+				       reg_list[i].val);
+		if (err) {
+			dev_dbg(dev, "%s: gain write error\n", __func__);
+			return err;
+		}
+	}
+
+	return err;
+}
+
+static int imx283_set_coarse_time(struct imx283 *priv, s64 val)
 {
 	struct camera_common_data *s_data = priv->s_data;
 	const struct sensor_mode_properties *mode =
-		&s_data->sensor_props.sensor_modes[s_data->mode];
+		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
 	struct device *dev = priv->tc_dev->dev;
 	imx283_reg reg_list[2];
 	u32 coarse_time;
@@ -191,12 +221,9 @@ static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
 	if (priv->frame_length == 0)
 		priv->frame_length = IMX283_FRAME_LENGTH_DEFAULT;
 
-	/*
-	 * SHR = VMAX - coarse_time.
-	 * Clamp so that SHR >= IMX283_MIN_SHR.
-	 */
-	if (coarse_time > (priv->frame_length - IMX283_MIN_SHR))
-		coarse_time = priv->frame_length - IMX283_MIN_SHR;
+	/* SHR = VMAX - coarse_time, clamped so that SHR >= IMX283_SHR_MIN */
+	if (coarse_time > (priv->frame_length - IMX283_SHR_MIN))
+		coarse_time = priv->frame_length - IMX283_SHR_MIN;
 	if (coarse_time < 1)
 		coarse_time = 1;
 
@@ -207,7 +234,7 @@ static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
 
 	imx283_get_shr_regs(reg_list, shr);
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < ARRAY_SIZE(reg_list); i++) {
 		err = imx283_write_reg(s_data, reg_list[i].addr,
 				       reg_list[i].val);
 		if (err) {
@@ -221,21 +248,17 @@ static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
 
 static int imx283_set_exposure(struct tegracam_device *tc_dev, s64 val)
 {
-	/*
-	 * Stub: exposure stays at the SHR value programmed by the mode
-	 * table (SHR = 11, near-full-frame open shutter at 10 fps).
-	 *
-	 * The previous implementation called imx283_set_coarse_time()
-	 * which computes SHR = priv->frame_length - coarse_time; that
-	 * runs against priv->frame_length BEFORE set_frame_rate
-	 * (tegracam call order: gain -> exposure -> frame_rate), so
-	 * SHR ends up referenced to a frame_length that frame_rate
-	 * may later overwrite with a different VMAX. Restore once
-	 * either the call ordering is fixed or set_frame_rate
-	 * recomputes SHR.
-	 */
-	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
-	return 0;
+	struct imx283 *priv = (struct imx283 *)tc_dev->priv;
+	struct device *dev = tc_dev->dev;
+	int err;
+
+	dev_dbg(dev, "%s: val: %lld\n", __func__, val);
+
+	err = imx283_set_coarse_time(priv, val);
+	if (err)
+		dev_dbg(dev, "%s: error setting exposure\n", __func__);
+
+	return err;
 }
 
 static int imx283_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
