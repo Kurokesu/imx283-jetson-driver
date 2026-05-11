@@ -156,20 +156,9 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_REG_SHR_LSB, 0x0B },
 	{ IMX283_REG_SHR_MSB, 0x00 },
 
-	/*
-	 * HMAX = 1800 (72 MHz clocks = 25 us/line). Sized for the
-	 * 720 Mbps preset: line burst is 5568 px * 12 bit / 4 lanes =
-	 * 16704 bits/lane = 23.2 us, so HMAX >= 1670 in 72 MHz units.
-	 * 1800 gives ~7% margin. Frame time = 1800 * 4000 / 72e6 =
-	 * 100 ms ~= 10 fps.
-	 */
-	{ IMX283_REG_HMAX_LSB, 0x08 },  /* 1800 & 0xFF */
-	{ IMX283_REG_HMAX_MSB, 0x07 },  /* 1800 >> 8   */
-
-	/* VMAX = 4000 (~10 fps at 720 Mbps with HMAX=1800) */
-	{ IMX283_REG_VMAX_LSB, 0xA0 },
-	{ IMX283_REG_VMAX_MID, 0x0F },
-	{ IMX283_REG_VMAX_MSB, 0x00 },
+	/* HMAX = 1800 @ 72 MHz = 25 us/line, ~7% margin over the 720 Mbps line burst */
+	{ IMX283_REG_HMAX_LSB, 1800 & 0xFF },
+	{ IMX283_REG_HMAX_MSB, (1800 >> 8) & 0xFF },
 
 	{ IMX283_REG_HTRIMMING, 0x30 },
 

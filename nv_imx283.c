@@ -23,17 +23,14 @@
 #include <media/tegracam_core.h>
 #include "imx283_mode_tbls.h"
 
-/*
- * Chip "ID" - standby register power-on default.
- */
+/* Chip "ID" - standby register power-on default */
 #define IMX283_CHIP_ID 0x0B
 
 /* Timing limits */
-#define IMX283_MIN_FRAME_LENGTH (3793)
-#define IMX283_MAX_FRAME_LENGTH (0xFFFF)
+#define IMX283_FRAME_LENGTH_MIN (3793)
+#define IMX283_FRAME_LENGTH_MAX (0xFFFF)
+#define IMX283_FRAME_LENGTH_DEFAULT (4000)
 #define IMX283_MIN_SHR (11)
-#define IMX283_DEFAULT_FRAME_LENGTH (4000)
-#define IMX283_DEFAULT_HMAX (900)
 
 /* Analog gain: 11-bit value, 0..1957 */
 #define IMX283_ANA_GAIN_MAX 1957
@@ -192,7 +189,7 @@ static int __maybe_unused imx283_set_coarse_time(struct imx283 *priv, s64 val)
 		mode->control_properties.exposure_factor);
 
 	if (priv->frame_length == 0)
-		priv->frame_length = IMX283_DEFAULT_FRAME_LENGTH;
+		priv->frame_length = IMX283_FRAME_LENGTH_DEFAULT;
 
 	/*
 	 * SHR = VMAX - coarse_time.
@@ -243,18 +240,43 @@ static int imx283_set_exposure(struct tegracam_device *tc_dev, s64 val)
 
 static int imx283_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
 {
-	/*
-	 * Stub: frame rate stays at the VMAX value programmed by the
-	 * mode table (VMAX = 4000 lines, ~10 fps with HMAX = 1800).
-	 *
-	 * The previous implementation wrote IMX283_VMAX_LSB/MID/MSB
-	 * computed from the requested rate but left SHR unchanged, so
-	 * a sequence of set_exposure -> set_frame_rate could leave
-	 * SHR referenced to the previous VMAX. Restore once SHR/VMAX
-	 * are kept consistent across the setter call sequence.
-	 */
-	dev_dbg(tc_dev->dev, "%s: stub (val=%lld ignored)\n", __func__, val);
-	return 0;
+	struct camera_common_data *s_data = tc_dev->s_data;
+	struct imx283 *priv = (struct imx283 *)tc_dev->priv;
+	struct device *dev = tc_dev->dev;
+	const struct sensor_mode_properties *mode =
+		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
+	imx283_reg vmax_regs[3];
+	u32 vmax;
+	int err, i;
+
+	if (val == 0 || mode->image_properties.line_length == 0)
+		return -EINVAL;
+
+	vmax = mode->signal_properties.pixel_clock.val *
+	       mode->control_properties.framerate_factor /
+	       mode->image_properties.line_length / val;
+
+	if (vmax < IMX283_FRAME_LENGTH_MIN)
+		vmax = IMX283_FRAME_LENGTH_MIN;
+	else if (vmax > IMX283_FRAME_LENGTH_MAX)
+		vmax = IMX283_FRAME_LENGTH_MAX;
+
+	dev_dbg(dev, "%s: val: %llde-6 [fps], vmax: %u [lines]\n", __func__,
+		val, vmax);
+
+	imx283_get_vmax_regs(vmax_regs, vmax);
+	for (i = 0; i < 3; i++) {
+		err = imx283_write_reg(s_data, vmax_regs[i].addr,
+				       vmax_regs[i].val);
+		if (err) {
+			dev_err(dev, "%s: VMAX write error\n", __func__);
+			return err;
+		}
+	}
+
+	priv->frame_length = vmax;
+
+	return err;
 }
 
 static int imx283_set_group_hold(struct tegracam_device *tc_dev, bool val)
@@ -558,7 +580,7 @@ static int imx283_set_mode(struct tegracam_device *tc_dev)
 	if (err)
 		return err;
 
-	priv->frame_length = IMX283_DEFAULT_FRAME_LENGTH;
+	priv->frame_length = IMX283_FRAME_LENGTH_DEFAULT;
 
 	return 0;
 }
