@@ -330,16 +330,13 @@ static int imx283_power_on(struct camera_common_data *s_data)
 
 skip_power_seqn:
 	if (pw->reset_gpio) {
-		usleep_range(1000, 2000);
-
 		if (gpiod_cansleep(gpio_to_desc(pw->reset_gpio)))
 			gpio_set_value_cansleep(pw->reset_gpio, 1);
 		else
 			gpio_set_value(pw->reset_gpio, 1);
 	}
 
-	/* Wait for sensor to exit reset and boot */
-	usleep_range(20000, 25000);
+	usleep_range(1000, 2000);
 
 	pw->state = SWITCH_ON;
 
@@ -503,7 +500,7 @@ imx283_parse_dt(struct tegracam_device *tc_dev)
 
 	match = of_match_device(imx283_of_match, dev);
 	if (!match) {
-		dev_err(dev, "Failed to find matching dt id\n");
+		dev_err(dev, "failed to find matching dt id\n");
 		return NULL;
 	}
 
