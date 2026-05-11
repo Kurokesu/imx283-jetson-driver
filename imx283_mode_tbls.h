@@ -176,29 +176,14 @@ static imx283_reg imx283_mode_5472x3648_12bit[] = {
 	{ IMX283_TABLE_END, 0x00 },
 };
 
-static imx283_reg imx283_start[] = {
-	{ IMX283_REG_XMSTA, 0x00 },
-	{ IMX283_TABLE_END, 0x00 },
-};
-
-/* Stop streaming: enter standby */
-static imx283_reg imx283_stop[] = {
-	{ IMX283_REG_STANDBY, IMX283_STBLOGIC },
-	{ IMX283_TABLE_END, 0x00 },
-};
-
 enum {
 	IMX283_MODE_5568X3648,
 	IMX283_MODE_COMMON,
-	IMX283_START_STREAM,
-	IMX283_STOP_STREAM,
 };
 
 static imx283_reg *mode_table[] = {
 	[IMX283_MODE_5568X3648] = imx283_mode_5472x3648_12bit,
 	[IMX283_MODE_COMMON] = imx283_mode_common,
-	[IMX283_START_STREAM] = imx283_start,
-	[IMX283_STOP_STREAM] = imx283_stop,
 };
 
 static const int imx283_20fps[] = {

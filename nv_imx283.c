@@ -566,7 +566,6 @@ static int imx283_set_mode(struct tegracam_device *tc_dev)
 static int imx283_start_streaming(struct tegracam_device *tc_dev)
 {
 	struct camera_common_data *s_data = tc_dev->s_data;
-	struct imx283 *priv = (struct imx283 *)tegracam_get_privdata(tc_dev);
 	int err = 0;
 
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
@@ -591,7 +590,7 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 			return err;
 	}
 
-	err = imx283_write_table(priv, mode_table[IMX283_START_STREAM]);
+	err = imx283_write_reg(s_data, IMX283_REG_XMSTA, 0x00);
 	if (err)
 		return err;
 
@@ -670,11 +669,11 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 
 static int imx283_stop_streaming(struct tegracam_device *tc_dev)
 {
-	struct imx283 *priv = (struct imx283 *)tegracam_get_privdata(tc_dev);
+	struct camera_common_data *s_data = tc_dev->s_data;
 	int err = 0;
 
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
-	err = imx283_write_table(priv, mode_table[IMX283_STOP_STREAM]);
+	err = imx283_write_reg(s_data, IMX283_REG_STANDBY, IMX283_STBLOGIC);
 
 	return err;
 }
