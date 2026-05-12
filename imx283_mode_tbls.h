@@ -129,7 +129,7 @@ static imx283_reg imx283_mode_common[] = {
 	{ IMX283_TABLE_END, 0x00 },
 };
 
-static imx283_reg imx283_mode_5472x3648_12bit[] = {
+static imx283_reg imx283_mode_5568x3648_12bit[] = {
 	{ IMX283_REG_MDSEL1, 0x04 },
 	{ IMX283_REG_MDSEL2, 0x03 },
 	{ IMX283_REG_MDSEL3, 0x10 | IMX283_MDSEL3_VCROP_EN },
@@ -171,7 +171,7 @@ enum {
 };
 
 static imx283_reg *mode_table[] = {
-	[IMX283_MODE_5568X3648] = imx283_mode_5472x3648_12bit,
+	[IMX283_MODE_5568X3648] = imx283_mode_5568x3648_12bit,
 	[IMX283_MODE_COMMON] = imx283_mode_common,
 };
 
