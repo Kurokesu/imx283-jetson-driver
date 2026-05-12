@@ -50,7 +50,10 @@ Navigate through the menu:
 
 1. Configure Jetson CSI Connector (named "22pin" on 6.2.2, "24pin" on 6.2.1)
 2. Configure for compatible hardware
-3. Select Camera IMX283-C
+3. Select `Camera IMX283-C`
+
+![jetson-io-tool](./img/jetson-io-tool.png "jetson-io-tool")
+
 4. Save pin changes
 5. Save and reboot to reconfigure pins
 
