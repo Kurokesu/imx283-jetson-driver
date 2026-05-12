@@ -37,7 +37,7 @@ sudo ./setup.sh
 Setup script:
 
 - Fetches NVIDIA device tree headers required for build
-- Builds and installs kernel module via DKMS
+- Builds and installs kernel module via [DKMS](https://github.com/dell/dkms)
 - Builds and copies device tree overlay (`.dtbo`) to `/boot`
 
 Use Jetson-IO to configure the CSI connector:
@@ -50,7 +50,7 @@ Navigate through the menu:
 
 1. Configure Jetson CSI Connector (named "22pin" on 6.2.2, "24pin" on 6.2.1)
 2. Configure for compatible hardware
-3. Select Camera IMX283-A
+3. Select Camera IMX283-C
 4. Save pin changes
 5. Save and reboot to reconfigure pins
 
