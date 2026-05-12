@@ -68,18 +68,26 @@ sudo dmesg | grep imx283
 
 ## Image output
 
+Sensor active area is 5472×3648, but driver advertises 5568×3648 because sensor prepends 96 columns of horizontal optical black (HOB) on the left for ISP black-level reference. HOB columns appear as a dark stripe in the output unless explicitly cropped downstream.
+
 ### GStreamer
+
+Cropped to active area (HOB columns removed via `nvvidconv`):
 
 ```bash
 gst-launch-1.0 -e nvarguscamerasrc sensor-id=0 ! \
-   'video/x-raw(memory:NVMM),width=5472,height=3648,framerate=20/1' ! \
-   queue ! nvvidconv ! queue ! nveglglessink
+   'video/x-raw(memory:NVMM),width=5568,height=3648,framerate=10/1' ! \
+   queue ! nvvidconv left=96 right=5568 top=0 bottom=3648 ! \
+   'video/x-raw(memory:NVMM),width=5472,height=3648' ! \
+   queue ! nveglglessink
 ```
 
-### NVIDIA sample camera capture application
+Full sensor readout (active area + 96-column horizontal optical black):
 
 ```bash
-nvgstcapture-1.0 --sensor-id 0
+gst-launch-1.0 -e nvarguscamerasrc sensor-id=0 ! \
+   'video/x-raw(memory:NVMM),width=5568,height=3648,framerate=10/1' ! \
+   queue ! nvvidconv ! queue ! nveglglessink
 ```
 
 ## Test mode
