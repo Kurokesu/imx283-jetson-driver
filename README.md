@@ -42,6 +42,9 @@ Setup script:
 
 Use Jetson-IO to configure the CSI connector:
 
+> [!NOTE]
+> IMX283 requires 4-lane MIPI CSI, so only port C (`cam1`) is supported.
+
 ```bash
 sudo /opt/nvidia/jetson-io/jetson-io.py
 ```
