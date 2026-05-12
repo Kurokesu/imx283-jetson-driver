@@ -66,6 +66,8 @@ After reboot, verify sensor is detected:
 sudo dmesg | grep imx283
 ```
 
+![dmesg-imx283](./img/dmesg.png "dmesg-imx283")
+
 ## Image output
 
 Sensor active area is 5472×3648, but driver advertises 5568×3648 because sensor prepends 96 columns of horizontal optical black (HOB) on the left for ISP black-level reference. HOB columns appear as a dark stripe in the output unless explicitly cropped downstream.
