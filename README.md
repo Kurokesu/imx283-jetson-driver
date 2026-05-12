@@ -93,15 +93,15 @@ Turn test pattern off:
 echo 0 | sudo tee /sys/module/nv_imx283/parameters/test_mode
 ```
 
-| Test pattern code | Description          |
-| ----------------- | -------------------- |
-| 0                 | Off (normal)         |
-| 1                 | All 000h             |
-| 2                 | All FFFh             |
-| 3                 | All 555h             |
-| 4                 | All AAAh             |
-| 5                 | Horizontal color bar |
-| 6                 | Vertical color bar   |
+| Test pattern code | Description |
+| ----------------- | ----------- |
+| 0 | Off (normal operation) |
+| 1 | All 000h |
+| 2 | All FFFh |
+| 3 | All 555h |
+| 4 | All AAAh |
+| 5 | Horizontal color bars |
+| 6 | Vertical color bars |
 
 ## Development builds
 
