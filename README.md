@@ -1,4 +1,7 @@
-# IMX283 MIPI NVIDIA driver
+# IMX283 kernel driver for NVIDIA Jetson
+
+![JetPack 6.2.1](https://img.shields.io/badge/JetPack_6.2.1-L4T_36.4.4-brightgreen?logo=nvidia&logoColor=white)
+![JetPack 6.2.2](https://img.shields.io/badge/JetPack_6.2.2-L4T_36.5.0-brightgreen?logo=nvidia&logoColor=white)
 
 NVIDIA Jetson kernel driver for Sony IMX283, a 20 MP 1" CMOS sensor.
 
