@@ -35,17 +35,17 @@
 /* Analog gain formula constant: linear_gain = 2048 / (2048 - reg) */
 #define IMX283_GAIN_C0 (2048)
 
-/* TPG patterns (written to 0x3157) */
-#define IMX283_TPG_PAT_ALL_000 0x00
-#define IMX283_TPG_PAT_ALL_FFF 0x01
-#define IMX283_TPG_PAT_ALL_555 0x02
-#define IMX283_TPG_PAT_ALL_AAA 0x03
-#define IMX283_TPG_PAT_H_COLOR_BARS 0x0A
-#define IMX283_TPG_PAT_V_COLOR_BARS 0x0B
+/* Test patterns */
+#define IMX283_TPG_PAT_000 0x00
+#define IMX283_TPG_PAT_FFF 0x01
+#define IMX283_TPG_PAT_555 0x02
+#define IMX283_TPG_PAT_AAA 0x03
+#define IMX283_TPG_PAT_H_COLOR_BARS 0x0B
+#define IMX283_TPG_PAT_V_COLOR_BARS 0x0A
 
 static const u8 imx283_tpg_val[] = {
-	IMX283_TPG_PAT_ALL_000,	     IMX283_TPG_PAT_ALL_FFF,
-	IMX283_TPG_PAT_ALL_555,	     IMX283_TPG_PAT_ALL_AAA,
+	IMX283_TPG_PAT_000,	     IMX283_TPG_PAT_FFF,
+	IMX283_TPG_PAT_555,	     IMX283_TPG_PAT_AAA,
 	IMX283_TPG_PAT_H_COLOR_BARS, IMX283_TPG_PAT_V_COLOR_BARS,
 };
 
@@ -616,17 +616,10 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 	dev_dbg(tc_dev->dev, "%s:\n", __func__);
 
 	if (test_mode) {
-		u8 pat_idx;
-
 		dev_dbg(tc_dev->dev, "test pattern mode %d\n", test_mode);
 
-		pat_idx = (test_mode >= 1 &&
-			   test_mode <= ARRAY_SIZE(imx283_tpg_val)) ?
-				  test_mode - 1 :
-				  0;
-
 		err = imx283_write_reg(s_data, IMX283_REG_TPG_PAT,
-				       imx283_tpg_val[pat_idx]);
+				       imx283_tpg_val[test_mode - 1]);
 		if (err)
 			return err;
 
