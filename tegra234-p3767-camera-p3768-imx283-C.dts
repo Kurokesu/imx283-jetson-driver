@@ -216,7 +216,7 @@
 								dynamic_pixel_bit_depth = "12";
 								csi_pixel_bit_depth = "12";
 								readout_orientation = "0";
-								line_length = "6096";
+								line_length = "6000";
 								inherent_gain = "1";
 								mclk_multiplier = "25";
 								pix_clk_hz = "240000000";
