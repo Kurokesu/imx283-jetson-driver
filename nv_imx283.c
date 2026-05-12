@@ -629,80 +629,8 @@ static int imx283_start_streaming(struct tegracam_device *tc_dev)
 	}
 
 	err = imx283_write_reg(s_data, IMX283_REG_XMSTA, 0x00);
-	if (err)
-		return err;
 
-	/*
-	 * Read back the registers that determine frame geometry and
-	 * master-mode state so dmesg shows the live sensor config at
-	 * stream start. Useful when chasing chansel mismatches since
-	 * Tegra's per-line/per-frame counters must match the on-wire
-	 * line width and line count.
-	 */
-	{
-		u8 standby = 0xff, xmsta = 0xff;
-		u8 mdsel3 = 0, mdsel4 = 0, htrim = 0;
-		u8 yout_l = 0, yout_h = 0, wvs_l = 0, wvs_h = 0, obv = 0;
-		u8 hmax_l = 0, hmax_h = 0, vmax_l = 0, vmax_m = 0, vmax_h = 0;
-		u8 hts_l = 0, hts_h = 0, hte_l = 0, hte_h = 0;
-		u8 vwp_l = 0, vwp_h = 0, vwc_l = 0, vwc_h = 0;
-		u8 ebd_l = 0, ebd_h = 0;
-		u8 tpg_ctrl = 0, tpg_pat = 0;
-
-		imx283_read_reg(s_data, IMX283_REG_STANDBY, &standby);
-		imx283_read_reg(s_data, IMX283_REG_XMSTA, &xmsta);
-		imx283_read_reg(s_data, IMX283_REG_MDSEL3, &mdsel3);
-		imx283_read_reg(s_data, IMX283_REG_MDSEL4, &mdsel4);
-		imx283_read_reg(s_data, IMX283_REG_HTRIMMING, &htrim);
-		imx283_read_reg(s_data, IMX283_REG_Y_OUT_SIZE_LSB, &yout_l);
-		imx283_read_reg(s_data, IMX283_REG_Y_OUT_SIZE_MSB, &yout_h);
-		imx283_read_reg(s_data, IMX283_REG_WRITE_VSIZE_LSB, &wvs_l);
-		imx283_read_reg(s_data, IMX283_REG_WRITE_VSIZE_MSB, &wvs_h);
-		imx283_read_reg(s_data, IMX283_REG_OB_SIZE_V, &obv);
-		imx283_read_reg(s_data, IMX283_REG_HMAX_LSB, &hmax_l);
-		imx283_read_reg(s_data, IMX283_REG_HMAX_MSB, &hmax_h);
-		imx283_read_reg(s_data, IMX283_REG_VMAX_LSB, &vmax_l);
-		imx283_read_reg(s_data, IMX283_REG_VMAX_MID, &vmax_m);
-		imx283_read_reg(s_data, IMX283_REG_VMAX_MSB, &vmax_h);
-		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_START_LSB, &hts_l);
-		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_START_MSB, &hts_h);
-		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_END_LSB, &hte_l);
-		imx283_read_reg(s_data, IMX283_REG_HTRIMMING_END_MSB, &hte_h);
-		imx283_read_reg(s_data, IMX283_REG_VWINPOS_LSB, &vwp_l);
-		imx283_read_reg(s_data, IMX283_REG_VWINPOS_MSB, &vwp_h);
-		imx283_read_reg(s_data, IMX283_REG_VWIDCUT_LSB, &vwc_l);
-		imx283_read_reg(s_data, IMX283_REG_VWIDCUT_MSB, &vwc_h);
-		imx283_read_reg(s_data, IMX283_REG_EBD_X_OUT_SIZE_LSB, &ebd_l);
-		imx283_read_reg(s_data, IMX283_REG_EBD_X_OUT_SIZE_MSB, &ebd_h);
-		imx283_read_reg(s_data, IMX283_REG_TPG_CTRL, &tpg_ctrl);
-		imx283_read_reg(s_data, IMX283_REG_TPG_PAT, &tpg_pat);
-
-		dev_info(
-			tc_dev->dev,
-			"start_streaming: STANDBY=0x%02x XMSTA=0x%02x (expect 0x00)\n",
-			standby, xmsta);
-		dev_info(tc_dev->dev,
-			 "  MDSEL3=0x%02x MDSEL4=0x%02x HTRIMMING=0x%02x\n",
-			 mdsel3, mdsel4, htrim);
-		dev_info(tc_dev->dev,
-			 "  HTRIM_START=%u HTRIM_END=%u (line_width=%u)\n",
-			 hts_l | (hts_h << 8), hte_l | (hte_h << 8),
-			 (hte_l | (hte_h << 8)) - (hts_l | (hts_h << 8)));
-		dev_info(tc_dev->dev,
-			 "  Y_OUT=%u WRITE_VSIZE=%u OB_V=%u EBD_X=%u\n",
-			 yout_l | (yout_h << 8), wvs_l | (wvs_h << 8), obv,
-			 ebd_l | (ebd_h << 8));
-		dev_info(tc_dev->dev, "  VWINPOS=%u VWIDCUT=%u\n",
-			 vwp_l | (vwp_h << 8), vwc_l | (vwc_h << 8));
-		dev_info(tc_dev->dev, "  HMAX=%u VMAX=%u\n",
-			 hmax_l | (hmax_h << 8),
-			 vmax_l | (vmax_m << 8) | (vmax_h << 16));
-		dev_info(tc_dev->dev,
-			 "  TPG_CTRL=0x%02x TPG_PAT=0x%02x (test_mode=%d)\n",
-			 tpg_ctrl, tpg_pat, test_mode);
-	}
-
-	return 0;
+	return err;
 }
 
 static int imx283_stop_streaming(struct tegracam_device *tc_dev)
