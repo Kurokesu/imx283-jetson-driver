@@ -175,8 +175,8 @@ static imx283_reg *mode_table[] = {
 	[IMX283_MODE_COMMON] = imx283_mode_common,
 };
 
-static const int imx283_20fps[] = {
-	20,
+static const int imx283_10fps[] = {
+	10,
 };
 
 /*
@@ -184,12 +184,7 @@ static const int imx283_20fps[] = {
  * device tree!
  */
 static const struct camera_common_frmfmt imx283_frmfmt[] = {
-	/*
-	 * 5568 x 3648 = 96 HOB + (HTRIMMING_END - HTRIMMING_START) =
-	 * full on-wire line width, x V-crop output line count. Both
-	 * dimensions are even as required by Tegra VI.
-	 */
-	{ { 5568, 3648 }, imx283_20fps, 1, 0, IMX283_MODE_5568X3648 },
+	{ { 5568, 3648 }, imx283_10fps, 1, 0, IMX283_MODE_5568X3648 },
 };
 
 #endif /* __IMX283_MODE_TBLS_H__ */
