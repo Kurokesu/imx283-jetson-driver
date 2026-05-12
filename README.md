@@ -7,10 +7,10 @@ NVIDIA Jetson kernel driver for Sony IMX283, a 20 MP 1" CMOS sensor.
 
 - 4-lane MIPI CSI-2
 - 12-bit RAW output
-- 5472×3648 @ 20 fps
+- 5472×3648 @ 10 fps
 
 > [!NOTE]
-> Currently, only `cam0` port support is implemented.
+> Only 720 Mbps MIPI lane rate is currently supported, which caps framerate at 10 fps.
 
 ## Setup
 
