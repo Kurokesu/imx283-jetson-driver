@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * nv_imx283.c - imx283 sensor driver
+ * imx283 sensor driver
  *
  * Copyright (c) 2016-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * Copyright (c) 2026, UAB Kurokesu. All rights reserved.
