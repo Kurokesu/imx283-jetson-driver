@@ -45,21 +45,7 @@ Setup script:
 - Fetches NVIDIA device tree headers required for build
 - Builds and installs kernel module via [DKMS](https://github.com/dell/dkms)
 - Builds and copies device tree overlay (`.dtbo`) to `/boot`
-
-Optionally, install the ISP tuning file:
-
-> [!WARNING]
-> ISP tuning file is still experimental and minimal. Only black level and framerate cap are calibrated for IMX283, everything else falls back to Argus defaults.
-
-```bash
-sudo cp ./tuning/camera_overrides.isp /var/nvidia/nvcam/settings
-```
-
-To restore default ISP parameters, remove the overrides file:
-
-```bash
-sudo rm /var/nvidia/nvcam/settings/camera_overrides.isp
-```
+- Installs ISP tuning to `/var/nvidia/nvcam/settings/`
 
 Use Jetson-IO to configure the CSI connector:
 
@@ -139,6 +125,20 @@ echo 0 | sudo tee /sys/module/nv_imx283/parameters/test_mode
 | 4 | All AAAh |
 | 5 | Horizontal color bars |
 | 6 | Vertical color bars |
+
+## ISP tuning
+
+Tuning file carries ISP parameters calibrated for this sensor: black level, lens shading, white balance and color correction. Global `camera_overrides.isp` applies to every camera and would shadow it, so setup retires it to `camera_overrides.isp.bak`.
+
+> [!WARNING]
+> Tuning is still experimental and minimal. Only black level and framerate cap are calibrated for IMX283, everything else falls back to Argus defaults.
+
+To restore default ISP parameters, remove tuning file and restart Argus:
+
+```bash
+sudo rm /var/nvidia/nvcam/settings/kurokesu_front_283CSI.isp
+sudo systemctl restart nvargus-daemon
+```
 
 ## Development builds
 
