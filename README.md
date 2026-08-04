@@ -47,14 +47,14 @@ Setup script:
 - Builds and copies device tree overlay (`.dtbo`) to `/boot`
 - Installs ISP tuning to `/var/nvidia/nvcam/settings/`
 
-Use Jetson-IO to configure the CSI connector:
-
-> [!NOTE]
-> IMX283 requires 4-lane MIPI CSI, so only port C (`cam1`) is supported.
+Use Jetson-IO to configure CSI connector:
 
 ```bash
 sudo /opt/nvidia/jetson-io/jetson-io.py
 ```
+
+> [!NOTE]
+> IMX283 requires 4-lane MIPI CSI, so only port C (`cam1`) is supported.
 
 Navigate through the menu:
 
@@ -73,7 +73,15 @@ After reboot, verify sensor is detected:
 sudo dmesg | grep imx283
 ```
 
-![dmesg-imx283](./docs/dmesg.png "dmesg-imx283")
+Expected output:
+
+```
+nv_imx283: module verification failed: signature and/or required key missing - tainting kernel
+imx283 9-001a: tegracam sensor driver:imx283_v2.0.6
+tegra-camrtc-capture-vi tegra-capture-vi: subdev imx283 9-001a bound
+```
+
+*Signature warning is expected since DKMS modules are unsigned.*
 
 ## Image output
 
