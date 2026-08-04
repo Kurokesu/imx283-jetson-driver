@@ -14,7 +14,7 @@ NVIDIA Jetson kernel driver for Sony IMX283, a 20 MP 1" CMOS sensor.
 > [!NOTE]
 > Only 720 Mbps MIPI lane rate is currently supported, which caps framerate at 10 fps.
 
-![Kurokesu on Jetson](./docs/kurokesu-on-jetson.jpg)
+![Kurokesu camera modules connected to a Jetson carrier board over CSI ribbon cables.](./docs/kurokesu-on-jetson.jpg)
 
 *IMX283 camera modules are available at [kurokesu.com](https://www.kurokesu.com/item/283C-CSI)*
 
@@ -62,7 +62,7 @@ Navigate through the menu:
 2. Configure for compatible hardware
 3. Select `Camera IMX283-C`
 
-![jetson-io-tool](./docs/jetson-io-tool.png "jetson-io-tool")
+    ![Jetson-IO menu with Camera IMX283-C selected.](./docs/jetson-io-tool.png)
 
 4. Save pin changes
 5. Save and reboot to reconfigure pins
