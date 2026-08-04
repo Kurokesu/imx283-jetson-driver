@@ -12,7 +12,7 @@ NVIDIA Jetson kernel driver for Sony IMX283, a 20 MP 1" CMOS sensor.
 - 5472×3648 @ 10 fps
 
 > [!NOTE]
-> Only 720 Mbps MIPI lane rate is currently supported, which caps framerate at 10 fps.
+> Only 720 Mbps MIPI lane rate is currently supported, which caps frame rate at 10 fps.
 
 ![Kurokesu camera modules connected to a Jetson carrier board over CSI ribbon cables.](./docs/kurokesu-on-jetson.jpg)
 
@@ -136,10 +136,10 @@ echo 0 | sudo tee /sys/module/nv_imx283/parameters/test_mode
 
 ## ISP tuning
 
-Tuning file carries ISP parameters calibrated for this sensor: black level, lens shading, white balance and color correction. Global `camera_overrides.isp` applies to every camera and would shadow it, so setup retires it to `camera_overrides.isp.bak`.
+Tuning file carries ISP parameters for this sensor. Global `camera_overrides.isp` applies to every camera and would shadow it, so setup retires it to `camera_overrides.isp.bak`.
 
 > [!WARNING]
-> Tuning is still experimental and minimal. Only black level and framerate cap are calibrated for IMX283, everything else falls back to Argus defaults.
+> Tuning is still experimental and minimal. Only black level and frame rate cap are calibrated for IMX283, everything else falls back to Argus defaults.
 
 To restore default ISP parameters, remove tuning file and restart Argus:
 
